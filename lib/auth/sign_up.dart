@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../components/wave_header.dart';
+import '../services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   final VoidCallback onSignUpSuccess;
@@ -44,8 +45,34 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
   }
 
   void _signUp() {
-    widget.onSignUpSuccess();
-    Navigator.of(context).pop();
+    _performSignUp();
+  }
+
+  Future<void> _performSignUp() async {
+    setState(() {});
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text;
+    final confirm = _confirmPasswordController.text;
+    if (password != confirm) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Passwords do not match')));
+      return;
+    }
+
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => Center(child: CircularProgressIndicator()));
+
+    try {
+      await AuthService.signUp(email: email, phone: phone, password: password);
+      Navigator.of(context).pop(); // close progress
+      widget.onSignUpSuccess();
+      Navigator.of(context).pop();
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
   }
 
   @override

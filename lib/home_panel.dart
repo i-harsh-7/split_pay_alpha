@@ -3,6 +3,7 @@ import 'panels/profile.dart';
 import 'panels/group.dart';
 import 'panels/create_group.dart';
 import 'panels/balances.dart';
+import 'services/auth_service.dart';
 
 class HomePanel extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -22,6 +23,24 @@ class HomePanel extends StatefulWidget {
 
 class _HomePanelState extends State<HomePanel> with TickerProviderStateMixin {
   int _selectedIndex = 0;
+  String? _name;
+  String? _email;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final profile = await AuthService.getProfile();
+    if (profile != null) {
+      setState(() {
+        _name = profile.name;
+        _email = profile.email;
+      });
+    }
+  }
 
   // Navigate to balances tab
   void _navigateToBalances() {
@@ -200,14 +219,24 @@ class _HomePanelState extends State<HomePanel> with TickerProviderStateMixin {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Hi Aryan, ready to split today's bill?",
+                          _name != null
+                              ? "Hi $_name, ready to split today's bill?"
+                              : "Hi there, ready to split today's bill?",
                           style: TextStyle(
                             color: textPrimary,
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        SizedBox(height: 8),
+                        if (_email != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Text(
+                              _email!,
+                              style: TextStyle(color: textPrimary.withOpacity(0.85)),
+                            ),
+                          ),
                         Center(
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(

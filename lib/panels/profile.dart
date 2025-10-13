@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
 class ProfilePanel extends StatefulWidget {
   final VoidCallback? onLogout;
@@ -17,6 +18,8 @@ class ProfilePanel extends StatefulWidget {
 class _ProfilePanelState extends State<ProfilePanel> {
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0.0;
+  String? _name;
+  String? _email;
 
   @override
   void initState() {
@@ -26,6 +29,21 @@ class _ProfilePanelState extends State<ProfilePanel> {
         _scrollOffset = _scrollController.offset;
       });
     });
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final user = await AuthService.getProfile();
+      if (user != null) {
+        setState(() {
+          _name = user.name;
+          _email = user.email.isNotEmpty ? user.email : null;
+        });
+      }
+    } catch (_) {
+      // ignore errors; leave defaults
+    }
   }
 
   @override
@@ -45,10 +63,9 @@ class _ProfilePanelState extends State<ProfilePanel> {
     final double maxScroll = 180.0;
     final double progress = (_scrollOffset / maxScroll).clamp(0.0, 1.0);
 
-    // Blue header height animation
-    final double expandedHeaderHeight = 500.0;
-    final double collapsedHeaderHeight = 200.0;
-    final double headerHeight = expandedHeaderHeight - (progress * (expandedHeaderHeight - collapsedHeaderHeight));
+  // Blue header height animation
+  final double expandedHeaderHeight = 500.0;
+  final double collapsedHeaderHeight = 200.0;
 
     // Profile photo size animation
     final double largePhotoSize = 180.0;
@@ -170,7 +187,7 @@ class _ProfilePanelState extends State<ProfilePanel> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Jane Doe',
+                            _name ?? 'Jane Doe',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: nameSize,
@@ -179,7 +196,7 @@ class _ProfilePanelState extends State<ProfilePanel> {
                           ),
                           SizedBox(height: 2),
                           Text(
-                            'jane.doe@example.com',
+                            _email ?? 'jane.doe@example.com',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.95),
                               fontSize: emailSize,

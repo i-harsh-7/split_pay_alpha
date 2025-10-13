@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../components/wave_header.dart'; // Update path if necessary
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
@@ -13,9 +14,24 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
+  bool _loading = false;
+  String? _error;
 
-  void _login() {
-    widget.onLoginSuccess();
+  Future<void> _login() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+      await AuthService.login(email: email, password: password);
+      widget.onLoginSuccess();
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      setState(() => _loading = false);
+    }
   }
 
   @override
@@ -106,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _login,
+                    onPressed: _loading ? null : _login,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryColor,
                       shape: RoundedRectangleBorder(
@@ -114,11 +130,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     child: Text(
-                      "Login",
+                      _loading ? 'Signing in...' : "Login",
                       style: TextStyle(fontSize: 17, color: Colors.white),
                     ),
                   ),
                 ),
+                if (_error != null) ...[
+                  SizedBox(height: 12),
+                  Text(_error!, style: TextStyle(color: Colors.redAccent)),
+                ],
                 SizedBox(height: 18),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
