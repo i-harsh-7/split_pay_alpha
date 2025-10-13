@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'panels/profile.dart';
+import 'panels/group.dart';
+import 'panels/create_group.dart';
+import 'panels/balances.dart';
 
 class HomePanel extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -13,7 +16,6 @@ class HomePanel extends StatefulWidget {
     required this.onLogout,
   });
 
-
   @override
   State<HomePanel> createState() => _HomePanelState();
 }
@@ -21,27 +23,23 @@ class HomePanel extends StatefulWidget {
 class _HomePanelState extends State<HomePanel> with TickerProviderStateMixin {
   int _selectedIndex = 0;
 
-  final _activity = [
-    {
-      'avatar': 'A',
-      'text': 'Harsh uploaded a bill in Friday Dinner',
-      'time': '2h'
-    },
-    {
-      'avatar': 'D',
-      'text': 'Deeksha settled ₹500 with you',
-      'time': '1d'
-    },
-    {
-      'avatar': 'K',
-      'text': 'Kanhaiya added you to Trip Goa',
-      'time': '3d'
-    }
-  ];
+  // Navigate to balances tab
+  void _navigateToBalances() {
+    setState(() {
+      _selectedIndex = 3; // Balances is at index 3
+    });
+  }
+
+  // Navigate to create group tab
+  void _navigateToCreateGroup() {
+    setState(() {
+      _selectedIndex = 2; // Create Group is at index 2
+    });
+  }
 
   Widget _buildHome(BuildContext context) {
     final isDark = widget.themeMode == ThemeMode.dark;
-    final colorPrimary = isDark ? Color(0xFF1D3557) : Color(0xFF3A7FD5);
+    final colorPrimary = isDark ? Color(0xFF2266B6) : Color(0xFF3A7FD5);
     final background = Theme.of(context).scaffoldBackgroundColor;
     final cardColor = Theme.of(context).cardColor;
     final owedColor = isDark ? Colors.red[300] : Colors.red;
@@ -51,205 +49,100 @@ class _HomePanelState extends State<HomePanel> with TickerProviderStateMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: double.infinity,
-          color: colorPrimary,
-          padding: const EdgeInsets.only(left: 20, right: 20, top: 38, bottom: 8),
-          child: SafeArea(
-            bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.menu, color: Colors.white, size: 30),
-                    const Spacer(),
-                    Icon(Icons.notifications_outlined, color: Colors.white),
-                  ],
-                ),
-                SizedBox(height: 16),
-                Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Hi Aryan, ready to split todays bill?",
-                        style: TextStyle(
-                          color: textPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 19,
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      Row(
-                        children: [
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colorPrimary,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              elevation: 0,
-                            ),
-                            onPressed: () {},
-                            child: Text("+ Add Bill"),
-                          ),
-                          SizedBox(width: 10),
-                          OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: colorPrimary,
-                              side: BorderSide(color: colorPrimary),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            onPressed: () {},
-                            child: Text("Create Group"),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 18),
-              ],
-            ),
-          ),
-        ),
+        // Custom Header with rounded corners
+        _buildRoundedHeader(context, colorPrimary, cardColor, textPrimary),
+
         Expanded(
           child: Container(
             width: double.infinity,
             padding: EdgeInsets.all(20),
             color: background,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Balances
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Your Balances",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: textPrimary,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      child: Text("See all"),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Card(
-                        color: cardColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.all(18),
-                          child: Column(
-                            children: [
-                              Text("You Owe", style: TextStyle(color: owedColor, fontSize: 15)),
-                              SizedBox(height: 4),
-                              Text("₹ 200",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 19,
-                                    color: textPrimary,
-                                  )),
-                            ],
-                          ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Your Balances",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: textPrimary,
                         ),
                       ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Card(
-                        color: cardColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.all(18),
-                          child: Column(
-                            children: [
-                              Text("You are Owed", style: TextStyle(color: owingColor, fontSize: 15)),
-                              SizedBox(height: 4),
-                              Text("₹ 200",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 19,
-                                    color: textPrimary,
-                                  )),
-                            ],
-                          ),
-                        ),
+                      TextButton(
+                        onPressed: _navigateToBalances,
+                        child: Text("See all"),
                       ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 20),
-                // Recent Activity
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Recent Activity', style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: textPrimary,
-                    )),
-                    TextButton(
-                      onPressed: () {},
-                      child: Text("See all"),
-                    ),
-                  ],
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(18),
+                    ],
                   ),
-                  padding: EdgeInsets.all(12),
-                  child: Column(
-                    children: _activity.map((a) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 7.0),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 16,
-                              child: Text(a['avatar'] ?? ''),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _navigateToBalances,
+                          child: Card(
+                            color: cardColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                a['text'] ?? '',
-                                style: TextStyle(
-                                  color: textPrimary,
-                                ),
+                            child: Padding(
+                              padding: EdgeInsets.all(18),
+                              child: Column(
+                                children: [
+                                  Text("You Owe",
+                                      style: TextStyle(color: owedColor, fontSize: 15)),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    "₹ 200",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 19,
+                                      color: textPrimary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            Text(
-                              a['time'] ?? '',
-                              style: TextStyle(color: Colors.grey, fontSize: 15),
-                            ),
-                          ],
+                          ),
                         ),
-                      );
-                    }).toList(),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _navigateToBalances,
+                          child: Card(
+                            color: cardColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.all(18),
+                              child: Column(
+                                children: [
+                                  Text("You are Owed",
+                                      style: TextStyle(color: owingColor, fontSize: 15)),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    "₹ 200",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 19,
+                                      color: textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -257,27 +150,107 @@ class _HomePanelState extends State<HomePanel> with TickerProviderStateMixin {
     );
   }
 
+  // Rounded header for home panel
+  Widget _buildRoundedHeader(BuildContext context, Color colorPrimary, Color cardColor, Color textPrimary) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final headerHeight = screenHeight * 0.30;
+
+    return Container(
+      height: headerHeight,
+      decoration: BoxDecoration(
+        color: colorPrimary,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Title centered
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: Text(
+                  "SplitPay",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ),
+            ),
+            // Card with greeting and button
+            Expanded(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: 30, left: 18, right: 18),
+                  child: Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Hi Aryan, ready to split today's bill?",
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Center(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorPrimary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              elevation: 0,
+                            ),
+                            onPressed: _navigateToCreateGroup,
+                            child: const Text(
+                              "Create Group",
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   final List<BottomNavigationBarItem> _navItems = [
     BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
     BottomNavigationBarItem(icon: Icon(Icons.group_outlined), label: 'Groups'),
     BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: ''),
-    BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: 'Activity'),
+    BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_outlined), label: 'Balances'),
     BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
   ];
 
-  // List<Widget> _tabs(BuildContext context) => [
-  //   _buildHome(context),
-  //   Center(child: Text("Groups Panel", style: Theme.of(context).textTheme.titleLarge)),
-  //   Center(child: Text("Add Bill", style: Theme.of(context).textTheme.titleLarge)),
-  //   Center(child: Text("Activity Panel", style: Theme.of(context).textTheme.titleLarge)),
-  //   Center(child: Text("Profile Panel", style: Theme.of(context).textTheme.titleLarge)),
-  // ];
-
   List<Widget> _tabs(BuildContext context) => [
     _buildHome(context),
-    Center(child: Text("Groups Panel", style: Theme.of(context).textTheme.titleLarge)),
-    Center(child: Text("Add Bill", style: Theme.of(context).textTheme.titleLarge)),
-    Center(child: Text("Activity Panel", style: Theme.of(context).textTheme.titleLarge)),
+    GroupsPanel(),
+    CreateGroupPage(),
+    BalancesPanel(),
     ProfilePanel(
       onLogout: widget.onLogout,
     ),
@@ -286,46 +259,55 @@ class _HomePanelState extends State<HomePanel> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isDark = widget.themeMode == ThemeMode.dark;
+    final colorPrimary = Theme.of(context).primaryColor;
 
-    return Scaffold(
-      body: AnimatedSwitcher(
-        duration: Duration(milliseconds: 350),
-        transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
-        child: _tabs(context)[_selectedIndex],
-      ),
-      floatingActionButton: _selectedIndex == 2
-          ? FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: isDark ? Color(0xFF2266B6) : Color(0xFF3A7FD5),
-        child: Icon(Icons.add),
-      )
-          : null,
-      bottomNavigationBar: BottomNavigationBar(
-        items: _navItems,
-        currentIndex: _selectedIndex,
-        selectedItemColor: isDark ? Colors.white : Color(0xFF3A7FD5),
-        unselectedItemColor: isDark ? Colors.white38 : Colors.grey,
-        backgroundColor: isDark ? Color(0xFF19202E) : Colors.white,
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) {
-          if (index == 2) {
-            setState(() => _selectedIndex = index); // Show add screen
-          } else {
+    return WillPopScope(
+      onWillPop: () async {
+        if (_selectedIndex != 0) {
+          setState(() {
+            _selectedIndex = 0;
+          });
+          return false;
+        }
+        return true;
+      },
+      child: Scaffold(
+        appBar: _selectedIndex == 4
+            ? AppBar(
+          title: Text('SplitPay'),
+          actions: [
+            IconButton(
+              icon: Icon(isDark ? Icons.wb_sunny : Icons.nightlight_round),
+              onPressed: widget.toggleTheme,
+            ),
+          ],
+        )
+            : null,
+        body: AnimatedSwitcher(
+          duration: Duration(milliseconds: 350),
+          transitionBuilder: (child, animation) =>
+              FadeTransition(opacity: animation, child: child),
+          child: _tabs(context)[_selectedIndex],
+        ),
+        floatingActionButton: _selectedIndex == 2
+            ? FloatingActionButton(
+          onPressed: () {},
+          backgroundColor: colorPrimary,
+          child: Icon(Icons.add),
+        )
+            : null,
+        bottomNavigationBar: BottomNavigationBar(
+          items: _navItems,
+          currentIndex: _selectedIndex,
+          selectedItemColor: colorPrimary,
+          unselectedItemColor: isDark ? Colors.white38 : Colors.grey,
+          backgroundColor: isDark ? Color(0xFF19202E) : Colors.white,
+          type: BottomNavigationBarType.fixed,
+          onTap: (index) {
             setState(() => _selectedIndex = index);
-          }
-        },
+          },
+        ),
       ),
-      appBar: _selectedIndex == 4
-          ? AppBar(
-        title: Text('SplitPay'),
-        actions: [
-          IconButton(
-            icon: Icon(isDark ? Icons.wb_sunny : Icons.nightlight_round),
-            onPressed: widget.toggleTheme,
-          ),
-        ],
-      )
-          : null,
     );
   }
 }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../components/wave_header.dart'; // Adjust this import to your file structure if needed
+import '../components/wave_header.dart';
 
 class SignUpScreen extends StatefulWidget {
   final VoidCallback onSignUpSuccess;
@@ -44,18 +44,27 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
   }
 
   void _signUp() {
-    // For demo, proceed directly
     widget.onSignUpSuccess();
     Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.primaryColor;
+    final background = theme.scaffoldBackgroundColor;
+    final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: background,
       body: Stack(
         children: [
-          const WaveHeader(),
+          WaveHeader(
+            gradientStart: primaryColor,
+            gradientEnd: theme.brightness == Brightness.dark
+                ? Color(0xFF19202E)
+                : Color(0xFFB3D8F6),
+          ),
           SlideTransition(
             position: _slideAnimation,
             child: FadeTransition(
@@ -71,95 +80,102 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
                         Text(
                           "Sign up",
                           style: TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87),
+                            fontSize: 30,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
                         ),
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
                         Container(
                           width: 32,
                           height: 3,
-                          color: const Color(0xFF65A7E7),
+                          color: primaryColor,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 30),
+                    SizedBox(height: 30),
                     TextField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(
                         labelText: "Email",
-                        prefixIcon: Icon(Icons.mail_outline),
+                        prefixIcon: Icon(Icons.mail_outline, color: primaryColor),
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    SizedBox(height: 18),
                     TextField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(
                         labelText: "Phone no",
-                        prefixIcon: Icon(Icons.phone_outlined),
+                        prefixIcon: Icon(Icons.phone_outlined, color: primaryColor),
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    SizedBox(height: 18),
                     TextField(
                       controller: _passwordController,
                       obscureText: true,
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(
                         labelText: "Password",
-                        prefixIcon: Icon(Icons.lock_outline),
+                        prefixIcon: Icon(Icons.lock_outline, color: primaryColor),
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    SizedBox(height: 18),
                     TextField(
                       controller: _confirmPasswordController,
                       obscureText: true,
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(
                         labelText: "Confirm Password",
-                        prefixIcon: Icon(Icons.lock_outline),
+                        prefixIcon: Icon(Icons.lock_outline, color: primaryColor),
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 30),
+                    SizedBox(height: 30),
                     SizedBox(
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
                         onPressed: _signUp,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF65A7E7),
+                          backgroundColor: primaryColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        child: const Text(
+                        child: Text(
                           "Create Account",
                           style: TextStyle(fontSize: 17, color: Colors.white),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text("Already have an Account? ",
-                            style: TextStyle(color: Colors.grey)),
+                        Text(
+                          "Already have an Account? ",
+                          style: TextStyle(color: textColor.withValues(alpha: 0.7)),
+                        ),
                         GestureDetector(
                           onTap: () => Navigator.of(context).pop(),
-                          child: const Text(
+                          child: Text(
                             "Login",
                             style: TextStyle(
-                              color: Color(0xFF65A7E7),
+                              color: primaryColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 30),
+                    SizedBox(height: 30),
                   ],
                 ),
               ),
@@ -170,3 +186,4 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
     );
   }
 }
+

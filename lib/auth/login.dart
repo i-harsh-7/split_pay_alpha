@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../components/wave_header.dart'; // Update this path if your structure differs
+import '../components/wave_header.dart'; // Update path if necessary
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
@@ -20,13 +20,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.primaryColor;
+    final background = theme.scaffoldBackgroundColor;
+    final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: background,
       body: Stack(
         children: [
-          // Wave background
-          const WaveHeader(),
-          // Login form
+          WaveHeader(
+            gradientStart: primaryColor,
+            gradientEnd: theme.brightness == Brightness.dark
+                ? Color(0xFF19202E)
+                : Color(0xFFB3D8F6),
+          ),
           SingleChildScrollView(
             padding: EdgeInsets.only(top: 180, left: 32, right: 32),
             child: Column(
@@ -39,16 +47,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       "Sign in",
                       style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
                       ),
                     ),
                     SizedBox(width: 10),
                     Container(
                       width: 28,
                       height: 3,
-                      color: Color(0xFF65A7E7),
+                      color: primaryColor,
                     ),
                   ],
                 ),
@@ -56,9 +64,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  style: TextStyle(color: textColor),
                   decoration: InputDecoration(
                     labelText: "Email",
-                    prefixIcon: Icon(Icons.mail_outline),
+                    prefixIcon: Icon(Icons.mail_outline, color: primaryColor),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -66,9 +75,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
+                  style: TextStyle(color: textColor),
                   decoration: InputDecoration(
                     labelText: "Password",
-                    prefixIcon: Icon(Icons.lock_outline),
+                    prefixIcon: Icon(Icons.lock_outline, color: primaryColor),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -78,9 +88,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     Checkbox(
                       value: _rememberMe,
                       onChanged: (v) => setState(() => _rememberMe = v!),
-                      activeColor: Color(0xFF65A7E7),
+                      activeColor: primaryColor,
                     ),
-                    Text("Remember Me"),
+                    Text("Remember Me", style: TextStyle(color: textColor)),
                     Spacer(),
                     TextButton(
                       onPressed: () {},
@@ -98,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: _login,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF65A7E7),
+                      backgroundColor: primaryColor,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -115,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Text(
                       "Don't have an Account? ",
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(color: textColor.withValues(alpha: 0.7)),
                     ),
                     GestureDetector(
                       onTap: () {
@@ -124,7 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Text(
                         "Sign up",
                         style: TextStyle(
-                          color: Color(0xFF65A7E7),
+                          color: primaryColor,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
