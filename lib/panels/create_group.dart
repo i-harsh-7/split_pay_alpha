@@ -57,6 +57,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
           'https://i.pravatar.cc/150?img=12', // Replace with actual user avatar
         ],
         icon: Icons.group, // Default group icon
+        description: _groupDescriptionController.text.trim(),
       );
 
       // Send this data to backend and add returned group to local service
@@ -111,9 +112,8 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
 
   // Backend API call - attempts to create group on server and returns created GroupModel
   Future<GroupModel?> _createGroupInBackend(GroupModel group) async {
-    // Build endpoint - NOTE: assumption: groups create endpoint is /groups/create
     const base = 'https://split-pay-q4wa.onrender.com/api/v1';
-    final uri = Uri.parse('$base/groups/create');
+    final uri = Uri.parse('$base/group/create');
 
     final token = await AuthService.getToken();
 
@@ -129,14 +129,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     });
 
     try {
-      var res = await http.post(uri, headers: headers, body: body).timeout(const Duration(seconds: 10));
-      if (!(res.statusCode == 200 || res.statusCode == 201)) {
-        // try alternative endpoint /groups
-        final altUri = Uri.parse('$base/groups');
-        try {
-          res = await http.post(altUri, headers: headers, body: body).timeout(const Duration(seconds: 8));
-        } catch (_) {}
-      }
+      final res = await http.post(uri, headers: headers, body: body).timeout(const Duration(seconds: 10));
 
       if (res.statusCode == 200 || res.statusCode == 201) {
         final Map<String, dynamic> parsed = jsonDecode(res.body);
@@ -167,12 +160,14 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
           }
 
           final created = GroupModel(
+            id: g['_id']?.toString() ?? g['id']?.toString(),
             name: g['name']?.toString() ?? group.name,
             members: membersCount,
             status: GroupStatus.settled,
             amount: 0,
             avatars: avatars,
             icon: Icons.group,
+            description: g['description']?.toString() ?? group.description,
           );
           return created;
         }
@@ -416,4 +411,3 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     );
   }
 }
-

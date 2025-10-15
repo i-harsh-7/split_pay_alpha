@@ -102,13 +102,14 @@ class _GroupCard extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            // builder: (context) => GroupDetailsPage(group: group),
-            builder: (context) => GroupDetailsPage(),
-          ),
-        );
+        if (group.id != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => GroupDetailsPage(groupId: group.id!),
+            ),
+          );
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

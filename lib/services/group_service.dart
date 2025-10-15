@@ -24,32 +24,8 @@ class GroupService extends ChangeNotifier {
   }
 
   void addSampleData() {
-    if (_groups.isNotEmpty) return;
-    _groups.addAll([
-      GroupModel(
-        name: "Friday Dinner",
-        members: 5,
-        status: GroupStatus.owe,
-        amount: 200,
-        avatars: [
-          'https://i.pravatar.cc/150?img=1',
-          'https://i.pravatar.cc/150?img=2',
-        ],
-        icon: Icons.restaurant,
-      ),
-      GroupModel(
-        name: "Weekend Trip",
-        members: 4,
-        status: GroupStatus.owed,
-        amount: 350,
-        avatars: [
-          'https://i.pravatar.cc/150?img=3',
-          'https://i.pravatar.cc/150?img=4',
-        ],
-        icon: Icons.hiking,
-      ),
-    ]);
-    notifyListeners();
+    // Removed sample data - only show real groups from backend
+    return;
   }
 
   // Try to fetch user's groups from backend. Tries a set of likely endpoints.
@@ -94,11 +70,13 @@ class GroupService extends ChangeNotifier {
                 }
 
                 _groups.add(GroupModel(
+                  id: g['_id']?.toString() ?? g['id']?.toString(),
                   name: g['name']?.toString() ?? 'Group',
                   members: membersCount,
                   status: GroupStatus.settled,
                   amount: 0,
                   avatars: avatars,
+                  description: g['description']?.toString(),
                 ));
               } catch (_) {}
             }
@@ -111,5 +89,38 @@ class GroupService extends ChangeNotifier {
 
     // If nothing fetched, keep sample data
     addSampleData();
+  }
+
+  // Fetch single group details by ID
+  Future<Map<String, dynamic>?> fetchGroupDetails(String groupId) async {
+    final base = 'https://split-pay-q4wa.onrender.com/api/v1';
+    final token = await AuthService.getToken();
+    final headers = {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+
+    try {
+      final uri = Uri.parse('$base/group/get/$groupId');
+      final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
+      
+      if (res.statusCode == 200) {
+        final parsed = jsonDecode(res.body);
+        
+        // Handle different response structures
+        if (parsed is Map<String, dynamic>) {
+          // Return the group data directly or from nested structure
+          if (parsed['group'] is Map<String, dynamic>) {
+            return parsed['group'] as Map<String, dynamic>;
+          } else if (parsed['data'] is Map<String, dynamic>) {
+            return parsed['data'] as Map<String, dynamic>;
+          }
+          return parsed;
+        }
+      }
+    } catch (e) {
+      print('Error fetching group details: $e');
+    }
+    return null;
   }
 }
