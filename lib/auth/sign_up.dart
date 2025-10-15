@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../components/wave_header.dart';
+import '../services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   final VoidCallback onSignUpSuccess;
@@ -11,6 +12,7 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderStateMixin {
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -36,6 +38,7 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
   @override
   void dispose() {
     _animationController.dispose();
+    _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
@@ -44,8 +47,35 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
   }
 
   void _signUp() {
-    widget.onSignUpSuccess();
-    Navigator.of(context).pop();
+    _performSignUp();
+  }
+
+  Future<void> _performSignUp() async {
+    setState(() {});
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text;
+    final confirm = _confirmPasswordController.text;
+    if (password != confirm) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Passwords do not match')));
+      return;
+    }
+
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => Center(child: CircularProgressIndicator()));
+
+    try {
+      await AuthService.signUp(name: name, email: email, phone: phone, password: password);
+      Navigator.of(context).pop(); // close progress
+      widget.onSignUpSuccess();
+      Navigator.of(context).pop();
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
   }
 
   @override
@@ -54,6 +84,14 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
     final primaryColor = theme.primaryColor;
     final background = theme.scaffoldBackgroundColor;
     final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
+    final size = MediaQuery.of(context).size;
+    final textScale = MediaQuery.of(context).textScaler.scale(1.0);
+    final horizontalPadding = (size.width * 0.08).clamp(16.0, 28.0);
+    final topPadding = (size.height * 0.18).clamp(100.0, 180.0);
+    final gapSmall = (size.height * 0.018).clamp(10.0, 20.0);
+    final gapMedium = (size.height * 0.03).clamp(16.0, 30.0);
+    final buttonHeight = (size.height * 0.06).clamp(44.0, 56.0);
+    final titleFontSize = (size.width * 0.075).clamp(22.0, 32.0) * textScale;
 
     return Scaffold(
       backgroundColor: background,
@@ -70,7 +108,7 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
             child: FadeTransition(
               opacity: _fadeAnimation,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.only(top: 140, left: 32, right: 32),
+                padding: EdgeInsets.only(top: topPadding, left: horizontalPadding, right: horizontalPadding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -80,20 +118,31 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
                         Text(
                           "Sign up",
                           style: TextStyle(
-                            fontSize: 30,
+                            fontSize: titleFontSize,
                             fontWeight: FontWeight.bold,
                             color: textColor,
                           ),
                         ),
-                        SizedBox(width: 10),
+                        SizedBox(width: gapSmall),
                         Container(
-                          width: 32,
-                          height: 3,
+                          width: (size.width * 0.08).clamp(24.0, 36.0),
+                          height: (size.height * 0.004).clamp(2.0, 4.0),
                           color: primaryColor,
                         ),
                       ],
                     ),
-                    SizedBox(height: 30),
+                    SizedBox(height: gapMedium),
+                    TextField(
+                      controller: _nameController,
+                      textCapitalization: TextCapitalization.words,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(
+                        labelText: "Name",
+                        prefixIcon: Icon(Icons.person_outline, color: primaryColor),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    SizedBox(height: gapSmall),
                     TextField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -104,7 +153,7 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    SizedBox(height: 18),
+                    SizedBox(height: gapSmall),
                     TextField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
@@ -115,7 +164,7 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    SizedBox(height: 18),
+                    SizedBox(height: gapSmall),
                     TextField(
                       controller: _passwordController,
                       obscureText: true,
@@ -126,7 +175,7 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    SizedBox(height: 18),
+                    SizedBox(height: gapSmall),
                     TextField(
                       controller: _confirmPasswordController,
                       obscureText: true,
@@ -137,10 +186,10 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    SizedBox(height: 30),
+                    SizedBox(height: gapMedium),
                     SizedBox(
                       width: double.infinity,
-                      height: 48,
+                      height: buttonHeight,
                       child: ElevatedButton(
                         onPressed: _signUp,
                         style: ElevatedButton.styleFrom(
@@ -151,11 +200,11 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
                         ),
                         child: Text(
                           "Create Account",
-                          style: TextStyle(fontSize: 17, color: Colors.white),
+                          style: TextStyle(fontSize: (size.width * 0.042).clamp(14.0, 18.0) * textScale, color: Colors.white),
                         ),
                       ),
                     ),
-                    SizedBox(height: 16),
+                    SizedBox(height: gapSmall),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -175,7 +224,7 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
                         ),
                       ],
                     ),
-                    SizedBox(height: 30),
+                    SizedBox(height: gapMedium),
                   ],
                 ),
               ),
@@ -186,4 +235,3 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
     );
   }
 }
-
