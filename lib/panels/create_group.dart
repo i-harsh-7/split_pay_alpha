@@ -2,6 +2,11 @@
 import 'package:flutter/material.dart';
 import '../components/header.dart';
 import '../models/group_model.dart';
+import 'package:provider/provider.dart';
+import '../services/group_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../services/auth_service.dart';
 
 class CreateGroupPage extends StatefulWidget {
   const CreateGroupPage({super.key});
@@ -54,8 +59,22 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
         icon: Icons.group, // Default group icon
       );
 
-      // Send this data to backend
-      await _createGroupInBackend(newGroup);
+      // Send this data to backend and add returned group to local service
+      final serverGroup = await _createGroupInBackend(newGroup);
+
+      try {
+        final svc = Provider.of<GroupService>(context, listen: false);
+        if (serverGroup != null) {
+          svc.addGroup(serverGroup);
+        } else {
+          // fallback to optimistic local group
+          svc.addGroup(newGroup);
+        }
+        // switch to Groups tab (index 1)
+        svc.selectedIndex = 1;
+      } catch (_) {
+        // if provider is not available, ignore
+      }
 
       if (!mounted) return;
 
@@ -90,37 +109,83 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     }
   }
 
-  // Backend API call - placeholder for now
-  Future<void> _createGroupInBackend(GroupModel group) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
+  // Backend API call - attempts to create group on server and returns created GroupModel
+  Future<GroupModel?> _createGroupInBackend(GroupModel group) async {
+    // Build endpoint - NOTE: assumption: groups create endpoint is /groups/create
+    const base = 'https://split-pay-q4wa.onrender.com/api/v1';
+    final uri = Uri.parse('$base/groups/create');
 
-    // TODO: Replace with actual API call to your backend
-    // Example:
-    // final response = await http.post(
-    //   Uri.parse('YOUR_API_ENDPOINT/groups/create'),
-    //   headers: {'Content-Type': 'application/json'},
-    //   body: jsonEncode({
-    //     'name': group.name,
-    //     'description': _groupDescriptionController.text.trim(),
-    //     'members': group.members,
-    //     'status': group.status.toString(),
-    //     'amount': group.amount,
-    //   }),
-    // );
-    //
-    // if (response.statusCode != 200) {
-    //   throw Exception('Failed to create group');
-    // }
+    final token = await AuthService.getToken();
 
-    // For now, just print the data
-    print('=== Creating group in backend ===');
-    print('Group Name: ${group.name}');
-    print('Description: ${_groupDescriptionController.text.trim()}');
-    print('Members: ${group.members}');
-    print('Status: ${group.status}');
-    print('Amount: ${group.amount}');
-    print('================================');
+    final headers = {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+
+    final body = jsonEncode({
+      'name': group.name,
+      'description': _groupDescriptionController.text.trim(),
+      'members': [], // let backend attach creator via token
+    });
+
+    try {
+      var res = await http.post(uri, headers: headers, body: body).timeout(const Duration(seconds: 10));
+      if (!(res.statusCode == 200 || res.statusCode == 201)) {
+        // try alternative endpoint /groups
+        final altUri = Uri.parse('$base/groups');
+        try {
+          res = await http.post(altUri, headers: headers, body: body).timeout(const Duration(seconds: 8));
+        } catch (_) {}
+      }
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        final Map<String, dynamic> parsed = jsonDecode(res.body);
+        // Support different payload shapes
+        final Map<String, dynamic>? g = parsed['group'] is Map<String, dynamic>
+            ? parsed['group'] as Map<String, dynamic>
+            : (parsed['data'] is Map && parsed['data']['group'] is Map)
+                ? parsed['data']['group'] as Map<String, dynamic>
+                : null;
+
+        if (g != null) {
+          final membersField = g['members'];
+          int membersCount = 1;
+          List<String> avatars = [];
+          if (membersField is List) {
+            membersCount = membersField.length;
+            // if members contain user objects, try to build simple avatars from email using pravatar
+            try {
+              for (final m in membersField) {
+                if (m is Map && (m['email'] is String)) {
+                  // generate a placeholder avatar using hash of email -> number
+                  final email = m['email'] as String;
+                  final id = (email.hashCode.abs() % 70) + 1; // pravatar supports up to ~70
+                  avatars.add('https://i.pravatar.cc/150?img=$id');
+                }
+              }
+            } catch (_) {}
+          }
+
+          final created = GroupModel(
+            name: g['name']?.toString() ?? group.name,
+            members: membersCount,
+            status: GroupStatus.settled,
+            amount: 0,
+            avatars: avatars,
+            icon: Icons.group,
+          );
+          return created;
+        }
+        return null;
+      } else {
+        // Non-success - parse message for developer feedback
+        print('Create group failed: ${res.statusCode} ${res.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error creating group: $e');
+      return null;
+    }
   }
 
   @override

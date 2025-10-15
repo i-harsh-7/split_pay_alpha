@@ -319,12 +319,14 @@
 
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'panels/profile.dart';
 import 'panels/group.dart';
 import 'panels/create_group.dart';
 import 'panels/balances.dart';
 import 'services/auth_service.dart';
-import 'models/user_model.dart';
+// user_model import not required here
+import 'services/group_service.dart';
 
 class HomePanel extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -343,10 +345,9 @@ class HomePanel extends StatefulWidget {
 }
 
 class _HomePanelState extends State<HomePanel> with TickerProviderStateMixin {
-  int _selectedIndex = 0;
+  // int _selectedIndex = 0; -> use GroupService.selectedIndex
   String? _name;
-  String? _email;
-  String? _userId;
+  // profile fields not needed here
 
   @override
   void initState() {
@@ -359,23 +360,20 @@ class _HomePanelState extends State<HomePanel> with TickerProviderStateMixin {
     if (profile != null) {
       setState(() {
         _name = profile.name;
-        _email = profile.email;
       });
     }
   }
 
   // Navigate to balances tab
   void _navigateToBalances() {
-    setState(() {
-      _selectedIndex = 3; // Balances is at index 3
-    });
+    final svc = Provider.of<GroupService>(context, listen: false);
+    svc.selectedIndex = 3; // Balances is at index 3
   }
 
   // Navigate to create group tab
   void _navigateToCreateGroup() {
-    setState(() {
-      _selectedIndex = 2; // Create Group is at index 2
-    });
+    final svc = Provider.of<GroupService>(context, listen: false);
+    svc.selectedIndex = 2; // Create Group is at index 2
   }
 
   Widget _buildHome(BuildContext context) {
@@ -620,16 +618,15 @@ class _HomePanelState extends State<HomePanel> with TickerProviderStateMixin {
 
     return WillPopScope(
       onWillPop: () async {
-        if (_selectedIndex != 0) {
-          setState(() {
-            _selectedIndex = 0;
-          });
+        final svc = Provider.of<GroupService>(context, listen: false);
+        if (svc.selectedIndex != 0) {
+          svc.selectedIndex = 0;
           return false;
         }
         return true;
       },
       child: Scaffold(
-        appBar: _selectedIndex == 4
+    appBar: Provider.of<GroupService>(context).selectedIndex == 4
             ? AppBar(
           title: Text('SplitPay'),
           actions: [
@@ -640,28 +637,37 @@ class _HomePanelState extends State<HomePanel> with TickerProviderStateMixin {
           ],
         )
             : null,
-        body: AnimatedSwitcher(
-          duration: Duration(milliseconds: 350),
-          transitionBuilder: (child, animation) =>
-              FadeTransition(opacity: animation, child: child),
-          child: _tabs(context)[_selectedIndex],
+        body: Consumer<GroupService>(
+          builder: (context, svc, _) {
+            final idx = svc.selectedIndex;
+            return AnimatedSwitcher(
+              duration: Duration(milliseconds: 350),
+              transitionBuilder: (child, animation) =>
+                  FadeTransition(opacity: animation, child: child),
+              child: _tabs(context)[idx],
+            );
+          },
         ),
-        floatingActionButton: _selectedIndex == 2
+        floatingActionButton: Provider.of<GroupService>(context).selectedIndex == 2
             ? FloatingActionButton(
-          onPressed: () {},
-          backgroundColor: colorPrimary,
-          child: Icon(Icons.add),
-        )
+                onPressed: () {},
+                backgroundColor: colorPrimary,
+                child: Icon(Icons.add),
+              )
             : null,
-        bottomNavigationBar: BottomNavigationBar(
-          items: _navItems,
-          currentIndex: _selectedIndex,
-          selectedItemColor: colorPrimary,
-          unselectedItemColor: isDark ? Colors.white38 : Colors.grey,
-          backgroundColor: isDark ? Color(0xFF19202E) : Colors.white,
-          type: BottomNavigationBarType.fixed,
-          onTap: (index) {
-            setState(() => _selectedIndex = index);
+        bottomNavigationBar: Consumer<GroupService>(
+          builder: (context, svc, _) {
+            return BottomNavigationBar(
+              items: _navItems,
+              currentIndex: svc.selectedIndex,
+              selectedItemColor: colorPrimary,
+              unselectedItemColor: isDark ? Colors.white38 : Colors.grey,
+              backgroundColor: isDark ? Color(0xFF19202E) : Colors.white,
+              type: BottomNavigationBarType.fixed,
+              onTap: (index) {
+                svc.selectedIndex = index;
+              },
+            );
           },
         ),
       ),

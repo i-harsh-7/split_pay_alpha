@@ -1,34 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../components/header.dart';
 import '../models/group_model.dart';
 import '../screens/group_details.dart';
+import '../services/group_service.dart';
 
 class GroupsPanel extends StatelessWidget {
-  final List<GroupModel> groups = [
-    GroupModel(
-      name: "Friday Dinner",
-      members: 5,
-      status: GroupStatus.owe,
-      amount: 200,
-      avatars: [
-        'https://i.pravatar.cc/150?img=1',
-        'https://i.pravatar.cc/150?img=2',
-      ],
-      icon: Icons.restaurant,
-    ),
-    GroupModel(
-      name: "Weekend Trip",
-      members: 4,
-      status: GroupStatus.owed,
-      amount: 350,
-      avatars: [
-        'https://i.pravatar.cc/150?img=3',
-        'https://i.pravatar.cc/150?img=4',
-      ],
-      icon: Icons.hiking,
-    ),
-  ];
-
   GroupsPanel({Key? key}) : super(key: key);
 
   @override
@@ -48,36 +25,41 @@ class GroupsPanel extends StatelessWidget {
             title: "Groups"
           ),
           Expanded(
-            child: groups.isEmpty
-                ? _NoGroupsView()
-                : Padding(
-              padding: const EdgeInsets.all(18),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Your Groups",
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 17,
-                          color: textColor),
-                    ),
-                    const SizedBox(height: 14),
-                    Column(
-                      children: groups
-                          .map((g) => _GroupCard(
-                        group: g,
-                        cardColor: cardColor,
-                        owedColor: owedColor,
-                        owingColor: owingColor,
-                        textColor: textColor,
-                      ))
-                          .toList(),
-                    ),
-                  ],
-                ),
-              ),
+            child: Consumer<GroupService>(
+              builder: (context, svc, _) {
+                final groups = svc.groups;
+                return groups.isEmpty
+                    ? _NoGroupsView()
+                    : Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Your Groups",
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 17,
+                                    color: textColor),
+                              ),
+                              const SizedBox(height: 14),
+                              Column(
+                                children: groups
+                                    .map((g) => _GroupCard(
+                                          group: g,
+                                          cardColor: cardColor,
+                                          owedColor: owedColor,
+                                          owingColor: owingColor,
+                                          textColor: textColor,
+                                        ))
+                                    .toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+              },
             ),
           ),
         ],
