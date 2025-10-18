@@ -148,7 +148,7 @@ class _GroupCardState extends State<_GroupCard> {
       final groupService = Provider.of<GroupService>(context, listen: false);
       final success = await groupService.deleteGroup(widget.group.id!);
 
-      Navigator.of(context).pop(); // Close loading dialog
+      Navigator.of(context).pop();
 
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -218,7 +218,7 @@ class _GroupCardState extends State<_GroupCard> {
         direction: DismissDirection.endToStart,
         confirmDismiss: (direction) async {
           _showDeleteDialog(context);
-          return false; // Don't auto-dismiss, wait for dialog
+          return false;
         },
         background: Container(
           margin: const EdgeInsets.only(bottom: 14),
@@ -273,7 +273,9 @@ class _GroupCardState extends State<_GroupCard> {
               children: [
                 Hero(
                   tag: 'group_avatar_${group.id}',
-                  child: _GroupAvatar(avatars: group.avatars, icon: group.icon),
+                  child: _GroupAvatar(
+                    groupName: group.name, // ✅ PASS GROUP NAME
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -289,19 +291,9 @@ class _GroupCardState extends State<_GroupCard> {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      // ❌ REMOVED: Member count display
-                      // const SizedBox(height: 4),
-                      // Text(
-                      //   "${group.members} member${group.members != 1 ? 's' : ''}",
-                      //   style: TextStyle(
-                      //     color: widget.textColor.withOpacity(0.6),
-                      //     fontSize: 13,
-                      //   ),
-                      // ),
                     ],
                   ),
                 ),
-                // Delete button
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.red.withOpacity(0.1),
@@ -328,53 +320,428 @@ class _GroupCardState extends State<_GroupCard> {
   }
 }
 
-// --- Group Avatar ---
+// --- Enhanced Group Avatar with EXTENSIVE ICON LIBRARY ---
 class _GroupAvatar extends StatelessWidget {
-  final List<String> avatars;
-  final IconData? icon;
+  final String groupName;
 
-  const _GroupAvatar({required this.avatars, this.icon});
+  const _GroupAvatar({required this.groupName});
+
+  // Comprehensive icon selection with 100+ patterns
+  IconData _getIconForGroup(String name) {
+    final lowerName = name.toLowerCase();
+
+    // 🍽️ Food & Dining (Extended)
+    if (lowerName.contains('dinner') || lowerName.contains('lunch') || 
+        lowerName.contains('breakfast') || lowerName.contains('meal') ||
+        lowerName.contains('restaurant') || lowerName.contains('dine')) 
+      return Icons.restaurant_rounded;
+    
+    if (lowerName.contains('coffee') || lowerName.contains('cafe') || 
+        lowerName.contains('tea') || lowerName.contains('starbucks')) 
+      return Icons.coffee_rounded;
+    
+    if (lowerName.contains('pizza') || lowerName.contains('burger') || 
+        lowerName.contains('fast food') || lowerName.contains('snack')) 
+      return Icons.fastfood_rounded;
+    
+    if (lowerName.contains('bar') || lowerName.contains('drink') || 
+        lowerName.contains('beer') || lowerName.contains('wine') ||
+        lowerName.contains('pub') || lowerName.contains('cocktail')) 
+      return Icons.local_bar_rounded;
+    
+    if (lowerName.contains('cake') || lowerName.contains('dessert') || 
+        lowerName.contains('sweet') || lowerName.contains('bakery') ||
+        lowerName.contains('ice cream')) 
+      return Icons.cake_rounded;
+    
+    if (lowerName.contains('brunch') || lowerName.contains('breakfast')) 
+      return Icons.brunch_dining_rounded;
+    
+    if (lowerName.contains('ramen') || lowerName.contains('noodle') || 
+        lowerName.contains('soup')) 
+      return Icons.ramen_dining_rounded;
+
+    // ✈️ Travel & Places (Extended)
+    if (lowerName.contains('trip') || lowerName.contains('travel') || 
+        lowerName.contains('vacation') || lowerName.contains('holiday') ||
+        lowerName.contains('tour')) 
+      return Icons.flight_takeoff_rounded;
+    
+    if (lowerName.contains('beach') || lowerName.contains('sea') || 
+        lowerName.contains('ocean') || lowerName.contains('coast')) 
+      return Icons.beach_access_rounded;
+    
+    if (lowerName.contains('hotel') || lowerName.contains('stay') || 
+        lowerName.contains('resort') || lowerName.contains('accommodation')) 
+      return Icons.hotel_rounded;
+    
+    if (lowerName.contains('camping') || lowerName.contains('camp') || 
+        lowerName.contains('tent') || lowerName.contains('outdoor')) 
+      return Icons.hiking_rounded;
+    
+    if (lowerName.contains('mountain') || lowerName.contains('hiking') || 
+        lowerName.contains('trek')) 
+      return Icons.terrain_rounded;
+    
+    if (lowerName.contains('road trip') || lowerName.contains('drive') || 
+        lowerName.contains('car rental')) 
+      return Icons.directions_car_rounded;
+    
+    if (lowerName.contains('cruise') || lowerName.contains('boat') || 
+        lowerName.contains('sailing')) 
+      return Icons.directions_boat_rounded;
+
+    // 🏠 Home & Living (Extended)
+    if (lowerName.contains('home') || lowerName.contains('house') || 
+        lowerName.contains('apartment')) 
+      return Icons.home_rounded;
+    
+    if (lowerName.contains('rent') || lowerName.contains('lease') || 
+        lowerName.contains('utilities')) 
+      return Icons.house_rounded;
+    
+    if (lowerName.contains('roommate') || lowerName.contains('flatmate') || 
+        lowerName.contains('shared')) 
+      return Icons.apartment_rounded;
+    
+    if (lowerName.contains('furniture') || lowerName.contains('ikea') || 
+        lowerName.contains('decor')) 
+      return Icons.chair_rounded;
+    
+    if (lowerName.contains('garden') || lowerName.contains('plant') || 
+        lowerName.contains('yard')) 
+      return Icons.yard_rounded;
+
+    // 🎬 Entertainment (Extended)
+    if (lowerName.contains('movie') || lowerName.contains('film') || 
+        lowerName.contains('cinema') || lowerName.contains('netflix')) 
+      return Icons.movie_creation_rounded;
+    
+    if (lowerName.contains('music') || lowerName.contains('concert') || 
+        lowerName.contains('festival') || lowerName.contains('spotify')) 
+      return Icons.music_note_rounded;
+    
+    if (lowerName.contains('game') || lowerName.contains('gaming') || 
+        lowerName.contains('esport') || lowerName.contains('xbox') ||
+        lowerName.contains('playstation')) 
+      return Icons.sports_esports_rounded;
+    
+    if (lowerName.contains('party') || lowerName.contains('celebrate') || 
+        lowerName.contains('birthday') || lowerName.contains('anniversary')) 
+      return Icons.celebration_rounded;
+    
+    if (lowerName.contains('theater') || lowerName.contains('drama') || 
+        lowerName.contains('show') || lowerName.contains('broadway')) 
+      return Icons.theater_comedy_rounded;
+    
+    if (lowerName.contains('night') || lowerName.contains('club') || 
+        lowerName.contains('disco')) 
+      return Icons.nightlife_rounded;
+    
+    if (lowerName.contains('karaoke') || lowerName.contains('sing')) 
+      return Icons.mic_rounded;
+    
+    if (lowerName.contains('book') || lowerName.contains('reading') || 
+        lowerName.contains('library')) 
+      return Icons.menu_book_rounded;
+
+    // 🛍️ Shopping (Extended)
+    if (lowerName.contains('shop') || lowerName.contains('shopping') || 
+        lowerName.contains('buy') || lowerName.contains('mall')) 
+      return Icons.shopping_bag_rounded;
+    
+    if (lowerName.contains('grocery') || lowerName.contains('supermarket') || 
+        lowerName.contains('market') || lowerName.contains('costco') ||
+        lowerName.contains('walmart')) 
+      return Icons.shopping_cart_rounded;
+    
+    if (lowerName.contains('gift') || lowerName.contains('present') || 
+        lowerName.contains('surprise')) 
+      return Icons.card_giftcard_rounded;
+    
+    if (lowerName.contains('fashion') || lowerName.contains('clothes') || 
+        lowerName.contains('outfit')) 
+      return Icons.checkroom_rounded;
+
+    // ⚽ Sports & Fitness (Extended)
+    if (lowerName.contains('soccer') || lowerName.contains('football')) 
+      return Icons.sports_soccer_rounded;
+    
+    if (lowerName.contains('basketball') || lowerName.contains('nba')) 
+      return Icons.sports_basketball_rounded;
+    
+    if (lowerName.contains('gym') || lowerName.contains('fitness') || 
+        lowerName.contains('workout') || lowerName.contains('exercise')) 
+      return Icons.fitness_center_rounded;
+    
+    if (lowerName.contains('tennis') || lowerName.contains('badminton')) 
+      return Icons.sports_tennis_rounded;
+    
+    if (lowerName.contains('golf')) 
+      return Icons.golf_course_rounded;
+    
+    if (lowerName.contains('swim') || lowerName.contains('pool')) 
+      return Icons.pool_rounded;
+    
+    if (lowerName.contains('yoga') || lowerName.contains('meditation') || 
+        lowerName.contains('pilates')) 
+      return Icons.self_improvement_rounded;
+    
+    if (lowerName.contains('run') || lowerName.contains('marathon') || 
+        lowerName.contains('jog')) 
+      return Icons.directions_run_rounded;
+    
+    if (lowerName.contains('bike') || lowerName.contains('cycling')) 
+      return Icons.directions_bike_rounded;
+
+    // 💼 Work & Education (Extended)
+    if (lowerName.contains('school') || lowerName.contains('class') || 
+        lowerName.contains('study') || lowerName.contains('student')) 
+      return Icons.school_rounded;
+    
+    if (lowerName.contains('work') || lowerName.contains('office') || 
+        lowerName.contains('business') || lowerName.contains('company') ||
+        lowerName.contains('project')) 
+      return Icons.business_center_rounded;
+    
+    if (lowerName.contains('meeting') || lowerName.contains('conference') || 
+        lowerName.contains('zoom')) 
+      return Icons.groups_rounded;
+    
+    if (lowerName.contains('presentation') || lowerName.contains('pitch')) 
+      return Icons.present_to_all_rounded;
+
+    // 🏥 Health & Wellness (Extended)
+    if (lowerName.contains('medical') || lowerName.contains('doctor') || 
+        lowerName.contains('hospital') || lowerName.contains('health')) 
+      return Icons.local_hospital_rounded;
+    
+    if (lowerName.contains('pharmacy') || lowerName.contains('medicine') || 
+        lowerName.contains('drug')) 
+      return Icons.local_pharmacy_rounded;
+    
+    if (lowerName.contains('spa') || lowerName.contains('wellness') || 
+        lowerName.contains('massage') || lowerName.contains('salon')) 
+      return Icons.spa_rounded;
+    
+    if (lowerName.contains('pet') || lowerName.contains('dog') || 
+        lowerName.contains('cat') || lowerName.contains('vet')) 
+      return Icons.pets_rounded;
+
+    // 👨‍👩‍👧‍👦 Family & Friends (Extended)
+    if (lowerName.contains('family') || lowerName.contains('parent') || 
+        lowerName.contains('kid') || lowerName.contains('children')) 
+      return Icons.family_restroom_rounded;
+    
+    if (lowerName.contains('friend') || lowerName.contains('buddy') || 
+        lowerName.contains('squad') || lowerName.contains('crew')) 
+      return Icons.groups_rounded;
+    
+    if (lowerName.contains('love') || lowerName.contains('couple') || 
+        lowerName.contains('date') || lowerName.contains('romance')) 
+      return Icons.favorite_rounded;
+    
+    if (lowerName.contains('wedding') || lowerName.contains('marriage') || 
+        lowerName.contains('bride') || lowerName.contains('groom')) 
+      return Icons.cake_rounded;
+    
+    if (lowerName.contains('baby') || lowerName.contains('infant') || 
+        lowerName.contains('newborn')) 
+      return Icons.child_care_rounded;
+
+    // 🚗 Transportation (Extended)
+    if (lowerName.contains('uber') || lowerName.contains('lyft') || 
+        lowerName.contains('taxi') || lowerName.contains('ride')) 
+      return Icons.local_taxi_rounded;
+    
+    if (lowerName.contains('gas') || lowerName.contains('fuel') || 
+        lowerName.contains('petrol')) 
+      return Icons.local_gas_station_rounded;
+    
+    if (lowerName.contains('parking') || lowerName.contains('garage')) 
+      return Icons.local_parking_rounded;
+    
+    if (lowerName.contains('train') || lowerName.contains('subway') || 
+        lowerName.contains('metro')) 
+      return Icons.train_rounded;
+    
+    if (lowerName.contains('bus')) 
+      return Icons.directions_bus_rounded;
+
+    // 💰 Finance (Extended)
+    if (lowerName.contains('bank') || lowerName.contains('atm') || 
+        lowerName.contains('finance')) 
+      return Icons.account_balance_rounded;
+    
+    if (lowerName.contains('invest') || lowerName.contains('stock') || 
+        lowerName.contains('trading')) 
+      return Icons.trending_up_rounded;
+    
+    if (lowerName.contains('bill') || lowerName.contains('payment') || 
+        lowerName.contains('expense')) 
+      return Icons.receipt_long_rounded;
+    
+    if (lowerName.contains('saving') || lowerName.contains('piggy')) 
+      return Icons.savings_rounded;
+
+    // 🎨 Creative & Hobbies (Extended)
+    if (lowerName.contains('art') || lowerName.contains('paint') || 
+        lowerName.contains('draw') || lowerName.contains('craft')) 
+      return Icons.palette_rounded;
+    
+    if (lowerName.contains('photo') || lowerName.contains('camera') || 
+        lowerName.contains('instagram')) 
+      return Icons.camera_alt_rounded;
+    
+    if (lowerName.contains('cooking') || lowerName.contains('recipe') || 
+        lowerName.contains('chef')) 
+      return Icons.restaurant_menu_rounded;
+    
+    if (lowerName.contains('volunteer') || lowerName.contains('charity') || 
+        lowerName.contains('donation')) 
+      return Icons.volunteer_activism_rounded;
+
+    // 📱 Technology (Extended)
+    if (lowerName.contains('tech') || lowerName.contains('gadget') || 
+        lowerName.contains('electronics')) 
+      return Icons.devices_rounded;
+    
+    if (lowerName.contains('internet') || lowerName.contains('wifi') || 
+        lowerName.contains('network')) 
+      return Icons.wifi_rounded;
+    
+    if (lowerName.contains('subscription') || lowerName.contains('netflix') || 
+        lowerName.contains('spotify') || lowerName.contains('streaming')) 
+      return Icons.subscriptions_rounded;
+
+    // 🎓 Special Events
+    if (lowerName.contains('graduation') || lowerName.contains('ceremony')) 
+      return Icons.school_rounded;
+    
+    if (lowerName.contains('christmas') || lowerName.contains('holiday')) 
+      return Icons.celebration_rounded;
+    
+    if (lowerName.contains('halloween')) 
+      return Icons.nightlight_rounded;
+    
+    if (lowerName.contains('new year') || lowerName.contains('nye')) 
+      return Icons.celebration_rounded;
+
+    // Default: Premium, visually appealing icons
+    final genericIcons = [
+      Icons.rocket_launch_rounded,
+      Icons.auto_awesome_rounded,
+      Icons.bubble_chart_rounded,
+      Icons.palette_rounded,
+      Icons.psychology_rounded,
+      Icons.emoji_emotions_rounded,
+      Icons.lightbulb_rounded,
+      Icons.hub_rounded,
+      Icons.diamond_rounded,
+      Icons.stars_rounded,
+      Icons.favorite_border_rounded,
+      Icons.celebration_rounded,
+      Icons.local_fire_department_rounded,
+      Icons.bolt_rounded,
+      Icons.emoji_objects_rounded,
+      Icons.eco_rounded,
+    ];
+    final index = name.hashCode.abs() % genericIcons.length;
+    return genericIcons[index];
+  }
+
+  // VIBRANT, MODERN GRADIENT COLORS - Enhanced palette
+  List<Color> _getColorsForGroup(String name) {
+    final colorSets = [
+      // Vibrant Purple & Lavender
+      [Color(0xFF9575CD), Color(0xFF7E57C2)],
+      
+      // Hot Pink & Rose
+      [Color(0xFFEF5DA8), Color(0xFFF48FB1)],
+      
+      // Ocean Teal & Turquoise
+      [Color(0xFF4DB6AC), Color(0xFF26A69A)],
+      
+      // Sky Blue & Azure
+      [Color(0xFF5DADE2), Color(0xFF42A5F5)],
+      
+      // Coral & Salmon
+      [Color(0xFFFF7961), Color(0xFFFF8A80)],
+      
+      // Royal Indigo & Violet
+      [Color(0xFF7986CB), Color(0xFF5C6BC0)],
+      
+      // Bright Cyan & Aqua
+      [Color(0xFF4DD0E1), Color(0xFF26C6DA)],
+      
+      // Golden Amber & Honey
+      [Color(0xFFFFB74D), Color(0xFFFFA726)],
+      
+      // Magenta & Pink
+      [Color(0xFFF06292), Color(0xFFEC407A)],
+      
+      // Fresh Green & Mint
+      [Color(0xFF66BB6A), Color(0xFF4DB6AC)],
+      
+      // Steel Blue-Grey
+      [Color(0xFF78909C), Color(0xFF607D8B)],
+      
+      // Peach & Orange
+      [Color(0xFFFF9E80), Color(0xFFFFAB91)],
+      
+      // Deep Purple & Plum
+      [Color(0xFFBA68C8), Color(0xFFAB47BC)],
+      
+      // Lime & Chartreuse
+      [Color(0xFF9CCC65), Color(0xFF8BC34A)],
+      
+      // Ruby & Crimson
+      [Color(0xFFE57373), Color(0xFFEF5350)],
+      
+      // Sapphire & Navy
+      [Color(0xFF64B5F6), Color(0xFF42A5F5)],
+    ];
+    final index = name.hashCode.abs() % colorSets.length;
+    return colorSets[index];
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (avatars.length >= 2) {
-      return SizedBox(
-        width: 48,
-        height: 40,
-        child: Stack(
-          children: [
-            Positioned(
-              left: 0,
-              child: CircleAvatar(
-                radius: 17,
-                backgroundColor: Colors.grey[300],
-                backgroundImage: NetworkImage(avatars[0]),
-              ),
-            ),
-            Positioned(
-              left: 22,
-              child: CircleAvatar(
-                radius: 17,
-                backgroundColor: Colors.grey[300],
-                backgroundImage: NetworkImage(avatars[1]),
-              ),
-            ),
-          ],
+    final colors = _getColorsForGroup(groupName);
+    final displayIcon = _getIconForGroup(groupName);
+
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-      );
-    } else if (avatars.isNotEmpty) {
-      return CircleAvatar(
-        radius: 20,
-        backgroundColor: Colors.grey[300],
-        backgroundImage: NetworkImage(avatars[0]),
-      );
-    } else {
-      return CircleAvatar(
-        radius: 20,
-        backgroundColor: Colors.grey[300],
-        child: Icon(icon ?? Icons.group, size: 22, color: Colors.grey[700]),
-      );
-    }
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: colors[0].withOpacity(0.35),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: ShaderMask(
+        shaderCallback: (bounds) => LinearGradient(
+          colors: [Colors.white.withOpacity(0.95), Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ).createShader(bounds),
+        child: Icon(
+          displayIcon,
+          size: 26,
+          color: Colors.white,
+        ),
+      ),
+    );
   }
 }
 
