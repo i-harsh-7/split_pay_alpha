@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../components/header.dart';
 import '../services/group_service.dart';
+import '../services/auth_service.dart';
 
 class GroupDetailsPage extends StatefulWidget {
   final String groupId;
@@ -38,12 +39,27 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       final groupData = await groupService.fetchGroupDetails(widget.groupId);
 
       if (groupData != null) {
+        // Get current user info
+        final currentUser = await AuthService.getProfile();
+        
         setState(() {
           _groupName = groupData['name']?.toString() ?? 'Group';
           _groupDescription = groupData['description']?.toString() ?? '';
           
           final membersField = groupData['members'];
           _members = [];
+          
+          // Always add current user first
+          if (currentUser != null) {
+            final userEmail = currentUser.email.isNotEmpty ? currentUser.email : 'user@example.com';
+            final userId = (userEmail.hashCode.abs() % 70) + 1;
+            _members.add({
+              'name': currentUser.name,
+              'email': userEmail,
+              'avatar': 'https://i.pravatar.cc/150?img=$userId',
+              'isCurrentUser': 'true',
+            });
+          }
           
           if (membersField is List) {
             _memberCount = membersField.length;
@@ -52,18 +68,28 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               if (m is Map) {
                 final email = m['email']?.toString() ?? '';
                 final name = m['name']?.toString() ?? m['username']?.toString() ?? 'Member';
+                
+                // Skip if this is the current user (already added)
+                if (currentUser != null && email == currentUser.email) {
+                  continue;
+                }
+                
                 final id = (email.hashCode.abs() % 70) + 1;
                 
                 _members.add({
                   'name': name,
                   'email': email,
                   'avatar': 'https://i.pravatar.cc/150?img=$id',
+                  'isCurrentUser': 'false',
                 });
               }
             }
           } else {
             _memberCount = 1;
           }
+          
+          // Ensure count is at least 1 (for current user)
+          if (_memberCount < 1) _memberCount = 1;
           
           _isLoading = false;
         });
@@ -438,6 +464,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                       cardColor: cardColor,
                                       textColor: textColor,
                                       isDark: isDark,
+                                      isCurrentUser: member['isCurrentUser'] == 'true',
                                     )),
                                   ],
                                 ),
@@ -542,6 +569,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     required Color cardColor,
     required Color textColor,
     required bool isDark,
+    bool isCurrentUser = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -549,6 +577,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(14),
+        border: isCurrentUser 
+            ? Border.all(color: Theme.of(context).primaryColor.withOpacity(0.5), width: 2)
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
@@ -577,13 +608,38 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isCurrentUser) ...[
+                      SizedBox(width: 8),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'You',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 if (email.isNotEmpty) ...[
                   const SizedBox(height: 2),
