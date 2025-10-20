@@ -5,6 +5,7 @@ import 'auth/sign_up.dart';
 import 'home_panel.dart';
 import 'package:provider/provider.dart';
 import 'services/group_service.dart';
+import 'services/auth_service.dart';
 
 void main() {
   runApp(const SplitPayApp());
@@ -20,10 +21,25 @@ class SplitPayApp extends StatefulWidget {
 class _SplitPayAppState extends State<SplitPayApp> {
   bool _isAuthenticated = false;
   ThemeMode _themeMode = ThemeMode.light;
+  GroupService? _groupService;
 
   void _onLoginOrSignUp() {
     setState(() {
       _isAuthenticated = true;
+    });
+    // Fetch groups for the newly logged in user
+    _groupService?.fetchGroups();
+  }
+
+  void _onLogout() async {
+    // Clear auth token
+    await AuthService.logout();
+    
+    // Clear groups from service
+    _groupService?.clearGroups();
+    
+    setState(() {
+      _isAuthenticated = false;
     });
   }
 
@@ -38,8 +54,11 @@ class _SplitPayAppState extends State<SplitPayApp> {
     return ChangeNotifierProvider(
       create: (_) {
         final svc = GroupService();
-        // attempt to fetch groups from backend (falls back to sample data)
-        svc.fetchGroups();
+        _groupService = svc;
+        // Only fetch groups if authenticated
+        if (_isAuthenticated) {
+          svc.fetchGroups();
+        }
         return svc;
       },
       child: MaterialApp(
@@ -54,19 +73,15 @@ class _SplitPayAppState extends State<SplitPayApp> {
           '/home': (context) => HomePanel(
                 toggleTheme: _toggleTheme,
                 themeMode: _themeMode,
-                onLogout: () {
-                  setState(() {
-                    _isAuthenticated = false;
-                  });
-                },
+                onLogout: _onLogout,
               ),
         },
         home: _isAuthenticated
-            ? HomePanel(toggleTheme: _toggleTheme, themeMode: _themeMode, onLogout: () {
-                setState(() {
-                  _isAuthenticated = false;
-                });
-              },)
+            ? HomePanel(
+                toggleTheme: _toggleTheme,
+                themeMode: _themeMode,
+                onLogout: _onLogout,
+              )
             : LoginScreen(onLoginSuccess: _onLoginOrSignUp),
         onGenerateRoute: (settings) {
           if (settings.name == '/signup') {

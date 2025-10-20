@@ -32,6 +32,20 @@ class AuthService {
         } on MissingPluginException {
           _inMemory['auth_token'] = token;
         }
+        
+        // Cache user from signup response
+        try {
+          final Map<String, dynamic>? userMap = body['user'] is Map<String, dynamic> 
+              ? body['user'] as Map<String, dynamic>
+              : null;
+          if (userMap != null) {
+            _cachedUser = User(
+              name: userMap['name']?.toString() ?? 'User',
+              email: userMap['email']?.toString() ?? '',
+            );
+          }
+        } catch (_) {}
+        
         return token;
       }
       throw Exception(body['message'] ?? 'Sign up succeeded but no token returned');
@@ -44,6 +58,9 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    // Clear cached user on new login
+    _cachedUser = null;
+    
     final uri = Uri.parse('$_base/login');
     final res = await http.post(uri,
         headers: {'Content-Type': 'application/json'},
@@ -59,6 +76,7 @@ class AuthService {
         } on MissingPluginException {
           _inMemory['auth_token'] = token;
         }
+        
         // Cache user if available in login payload
         try {
           final Map<String, dynamic>? userMap =
@@ -67,8 +85,10 @@ class AuthService {
                   ? body['data']['user'] as Map<String, dynamic>
                   : null;
           if (userMap != null) {
-            final userModel = UserModel.fromLoginUser(userMap);
-            _cachedUser = User(name: userModel.name, email: userModel.email);
+            _cachedUser = User(
+              name: userMap['name']?.toString() ?? 'User',
+              email: userMap['email']?.toString() ?? '',
+            );
           }
         } catch (_) {
           // ignore user caching errors
@@ -81,6 +101,9 @@ class AuthService {
   }
 
   static Future<void> logout() async {
+    // Clear cached user
+    _cachedUser = null;
+    
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('auth_token');
@@ -134,6 +157,11 @@ class AuthService {
       }
     }
     return null;
+  }
+  
+  /// Clear the cached user (useful on logout)
+  static void clearCache() {
+    _cachedUser = null;
   }
 }
 

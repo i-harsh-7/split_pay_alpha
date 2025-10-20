@@ -1,4 +1,3 @@
-// lib/panels/create_group.dart
 import 'package:flutter/material.dart';
 import '../components/header.dart';
 import '../models/group_model.dart';
@@ -30,9 +29,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
   }
 
   Future<void> _handleCreateGroup() async {
-    // Validate the form first
     if (!(_formKey.currentState?.validate() ?? false)) {
-      // Show error message if group name is not filled
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill in the group name'),
@@ -46,40 +43,30 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     setState(() => _isCreating = true);
 
     try {
-      // Create a new GroupModel instance with the entered data
       final newGroup = GroupModel(
         name: _groupNameController.text.trim(),
-        members: 1, // Initially just the creator
-        status: GroupStatus.settled, // No transactions yet
-        amount: 0, // No amount owed initially
-        avatars: [
-          // Add current user's avatar
-          'https://i.pravatar.cc/150?img=12', // Replace with actual user avatar
-        ],
-        icon: Icons.group, // Default group icon
+        members: 1,
+        status: GroupStatus.settled,
+        amount: 0,
+        avatars: ['https://i.pravatar.cc/150?img=12'],
+        icon: Icons.group,
         description: _groupDescriptionController.text.trim(),
       );
 
-      // Send this data to backend and add returned group to local service
       final serverGroup = await _createGroupInBackend(newGroup);
 
       try {
         final svc = Provider.of<GroupService>(context, listen: false);
-        if (serverGroup != null) {
-          svc.addGroup(serverGroup);
-        } else {
-          // fallback to optimistic local group
-          svc.addGroup(newGroup);
-        }
-        // switch to Groups tab (index 1)
+        
+        // Refresh groups from backend to get the latest data
+        await svc.fetchGroups();
+        
+        // Switch to Groups tab (index 1)
         svc.selectedIndex = 1;
-      } catch (_) {
-        // if provider is not available, ignore
-      }
+      } catch (_) {}
 
       if (!mounted) return;
 
-      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Group "${newGroup.name}" created successfully!'),
@@ -88,7 +75,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
         ),
       );
 
-      // Clear the form fields
       _groupNameController.clear();
       _groupDescriptionController.clear();
 
@@ -97,7 +83,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     } catch (e) {
       if (!mounted) return;
 
-      // Show error message if something goes wrong
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error creating group: ${e.toString()}'),
@@ -110,7 +95,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     }
   }
 
-  // Backend API call - attempts to create group on server and returns created GroupModel
   Future<GroupModel?> _createGroupInBackend(GroupModel group) async {
     const base = 'https://split-pay-q4wa.onrender.com/api/v1';
     final uri = Uri.parse('$base/group/create');
@@ -125,7 +109,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     final body = jsonEncode({
       'name': group.name,
       'description': _groupDescriptionController.text.trim(),
-      'members': [], // let backend attach creator via token
+      'members': [],
     });
 
     try {
@@ -133,7 +117,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
 
       if (res.statusCode == 200 || res.statusCode == 201) {
         final Map<String, dynamic> parsed = jsonDecode(res.body);
-        // Support different payload shapes
         final Map<String, dynamic>? g = parsed['group'] is Map<String, dynamic>
             ? parsed['group'] as Map<String, dynamic>
             : (parsed['data'] is Map && parsed['data']['group'] is Map)
@@ -146,13 +129,11 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
           List<String> avatars = [];
           if (membersField is List) {
             membersCount = membersField.length;
-            // if members contain user objects, try to build simple avatars from email using pravatar
             try {
               for (final m in membersField) {
                 if (m is Map && (m['email'] is String)) {
-                  // generate a placeholder avatar using hash of email -> number
                   final email = m['email'] as String;
-                  final id = (email.hashCode.abs() % 70) + 1; // pravatar supports up to ~70
+                  final id = (email.hashCode.abs() % 70) + 1;
                   avatars.add('https://i.pravatar.cc/150?img=$id');
                 }
               }
@@ -173,7 +154,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
         }
         return null;
       } else {
-        // Non-success - parse message for developer feedback
         print('Create group failed: ${res.statusCode} ${res.body}');
         return null;
       }
@@ -192,7 +172,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black87;
     final backgroundColor = theme.scaffoldBackgroundColor;
 
-    // Insets for safe areas and keyboard
     final media = MediaQuery.of(context);
     final safeBottom = media.viewPadding.bottom;
     final keyboardBottom = media.viewInsets.bottom;
@@ -205,13 +184,11 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
         bottom: true,
         child: Column(
           children: [
-            // Header Component
             const Header(
               title: "Create Group",
               heightFactor: 0.12,
             ),
 
-            // Form Content
             Expanded(
               child: AnimatedPadding(
                 duration: const Duration(milliseconds: 150),
@@ -228,7 +205,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                       children: [
                         const SizedBox(height: 8),
 
-                        // Group Name Label
                         Text(
                           "Group Name",
                           style: TextStyle(
@@ -239,7 +215,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                         ),
                         const SizedBox(height: 10),
 
-                        // Group Name Input (Required)
                         TextFormField(
                           controller: _groupNameController,
                           style: TextStyle(
@@ -305,7 +280,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
 
                         const SizedBox(height: 24),
 
-                        // Description Label
                         Text(
                           "Description",
                           style: TextStyle(
@@ -316,7 +290,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                         ),
                         const SizedBox(height: 10),
 
-                        // Description Input (Optional)
                         TextFormField(
                           controller: _groupDescriptionController,
                           style: TextStyle(
@@ -360,7 +333,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
 
                         const SizedBox(height: 40),
 
-                        // Create Button
                         SizedBox(
                           width: double.infinity,
                           height: 52,

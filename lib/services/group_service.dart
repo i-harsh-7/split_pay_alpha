@@ -62,6 +62,13 @@ class GroupService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Clear all groups (call this on logout)
+  void clearGroups() {
+    _groups.clear();
+    _selectedIndex = 0;
+    notifyListeners();
+  }
+
   void addSampleData() {
     // Removed sample data - only show real groups from backend
     return;
@@ -71,9 +78,17 @@ class GroupService extends ChangeNotifier {
   Future<void> fetchGroups() async {
     final base = 'https://split-pay-q4wa.onrender.com/api/v1';
     final token = await AuthService.getToken();
+    
+    // If no token, clear groups and return
+    if (token == null) {
+      _groups.clear();
+      notifyListeners();
+      return;
+    }
+    
     final headers = {
       'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
+      'Authorization': 'Bearer $token',
     };
 
     try {
@@ -84,11 +99,15 @@ class GroupService extends ChangeNotifier {
         final parsed = jsonDecode(res.body);
         List<dynamic>? arr;
         
-        if (parsed is List) {
+        if (parsed is Map && parsed['success'] == true) {
+          // Backend returns: { success: true, message: "...", groups: [...] }
+          if (parsed['groups'] is List) {
+            arr = parsed['groups'];
+          }
+        } else if (parsed is List) {
           arr = parsed;
         } else if (parsed is Map) {
-          if (parsed['groups'] is List) arr = parsed['groups'];
-          else if (parsed['data'] is List) arr = parsed['data'];
+          if (parsed['data'] is List) arr = parsed['data'];
           else if (parsed['data'] is Map && parsed['data']['groups'] is List) arr = parsed['data']['groups'];
         }
         
@@ -128,13 +147,19 @@ class GroupService extends ChangeNotifier {
           notifyListeners();
           return;
         }
+      } else if (res.statusCode == 400) {
+        // User is not in any group - this is OK
+        _groups.clear();
+        notifyListeners();
+        return;
       }
     } catch (e) {
       print('Error fetching groups: $e');
     }
 
-    // If nothing fetched, don't show sample data
-    addSampleData();
+    // If fetch failed or no groups, clear the list
+    _groups.clear();
+    notifyListeners();
   }
   
   // Delete a group by ID
