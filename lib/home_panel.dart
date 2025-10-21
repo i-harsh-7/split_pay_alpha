@@ -6,6 +6,8 @@ import 'panels/create_group.dart';
 import 'panels/balances.dart';
 import 'services/auth_service.dart';
 import 'services/group_service.dart';
+import 'services/invite_service.dart';
+import 'services/notification_service.dart';
 
 class HomePanel extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -25,12 +27,17 @@ class HomePanel extends StatefulWidget {
 
 class _HomePanelState extends State<HomePanel> {
   String? _name;
+  List<Map<String, dynamic>> _pendingInvites = [];
+  List<Map<String, dynamic>> _notifications = [];
+  bool _loadingInvites = false;
+  bool _loadingNotifications = false;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
-    // Fetch groups when home panel loads
+    _loadPendingInvites();
+    _loadNotifications();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<GroupService>(context, listen: false).fetchGroups();
     });
@@ -45,13 +52,185 @@ class _HomePanelState extends State<HomePanel> {
     }
   }
 
-  // Navigate to balances tab
-  void _navigateToBalances() {
-    final svc = Provider.of<GroupService>(context, listen: false);
-    svc.selectedIndex = 3;
+  Future<void> _loadPendingInvites() async {
+    setState(() => _loadingInvites = true);
+    try {
+      final invites = await InviteService.getPendingInvites();
+      if (mounted) {
+        setState(() {
+          _pendingInvites = invites;
+          _loadingInvites = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loadingInvites = false);
+      }
+    }
   }
 
-  // Navigate to create group tab
+  Future<void> _loadNotifications() async {
+    setState(() => _loadingNotifications = true);
+    try {
+      final notifications = await NotificationService.getNotifications();
+      if (mounted) {
+        setState(() {
+          _notifications = notifications;
+          _loadingNotifications = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loadingNotifications = false);
+      }
+    }
+  }
+
+  Future<void> _handleAcceptInvite(String inviteId, String groupName) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Center(
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Accepting invite...'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final result = await InviteService.acceptInvite(inviteId);
+      Navigator.of(context).pop();
+
+      if (result['success']) {
+        await Future.wait([
+          Provider.of<GroupService>(context, listen: false).fetchGroups(),
+          _loadPendingInvites(),
+        ]);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Joined "$groupName" successfully!')),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleRejectInvite(String inviteId, String groupName) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Center(
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Rejecting invite...'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final result = await InviteService.rejectInvite(inviteId);
+      Navigator.of(context).pop();
+
+      if (result['success']) {
+        await _loadPendingInvites();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Declined invitation to "$groupName"')),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _dismissNotification(String notificationId) async {
+    try {
+      await NotificationService.dismissNotification(notificationId);
+      await _loadNotifications();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error dismissing notification'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _navigateToCreateGroup() {
     final svc = Provider.of<GroupService>(context, listen: false);
     svc.selectedIndex = 2;
@@ -62,11 +241,8 @@ class _HomePanelState extends State<HomePanel> {
     final colorPrimary = isDark ? Color(0xFF2266B6) : Color(0xFF3A7FD5);
     final background = Theme.of(context).scaffoldBackgroundColor;
     final cardColor = Theme.of(context).cardColor;
-    final owedColor = isDark ? Colors.red[300] : Colors.red;
-    final owingColor = isDark ? Colors.greenAccent : Colors.green;
     final textPrimary = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black;
 
-    // Responsive metrics
     final media = MediaQuery.of(context);
     final size = media.size;
     final textScale = media.textScaler.scale(1.0);
@@ -89,92 +265,395 @@ class _HomePanelState extends State<HomePanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Your Balances",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: sectionTitleSize,
-                          color: textPrimary,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: _navigateToBalances,
-                        child: Text("See all"),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: _navigateToBalances,
-                          child: Card(
-                            color: cardColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(cardRadius),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(cardPadding),
-                              child: Column(
-                                children: [
-                                  Text("You Owe",
-                                      style: TextStyle(color: owedColor, fontSize: (size.width * 0.04).clamp(13.0, 17.0) * textScale)),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    "₹ 200",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: (size.width * 0.05).clamp(16.0, 22.0) * textScale,
-                                      color: textPrimary,
-                                    ),
-                                  ),
-                                ],
+                  // Pending Invitations Section
+                  if (_pendingInvites.isNotEmpty) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              "Pending Invitations",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: sectionTitleSize,
+                                color: textPrimary,
                               ),
                             ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: (size.width * 0.03).clamp(10.0, 16.0)),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: _navigateToBalances,
-                          child: Card(
-                            color: cardColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(cardRadius),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(cardPadding),
-                              child: Column(
-                                children: [
-                                  Text("You are Owed",
-                                      style: TextStyle(color: owingColor, fontSize: (size.width * 0.04).clamp(13.0, 17.0) * textScale)),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    "₹ 200",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: (size.width * 0.05).clamp(16.0, 22.0) * textScale,
-                                      color: textPrimary,
-                                    ),
-                                  ),
-                                ],
+                            SizedBox(width: 8),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${_pendingInvites.length}',
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.refresh, size: 20),
+                          onPressed: _loadPendingInvites,
+                          tooltip: 'Refresh invites',
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    ..._pendingInvites.map((invite) => _buildInviteCard(
+                      invite: invite,
+                      cardColor: cardColor,
+                      textPrimary: textPrimary,
+                      colorPrimary: colorPrimary,
+                      cardRadius: cardRadius,
+                      isDark: isDark,
+                    )),
+                    SizedBox(height: 20),
+                  ],
+
+                  // Notifications Section
+                  if (_notifications.isNotEmpty) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              "Notifications",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: sectionTitleSize,
+                                color: textPrimary,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: colorPrimary.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${_notifications.length}',
+                                style: TextStyle(
+                                  color: colorPrimary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.refresh, size: 20),
+                          onPressed: _loadNotifications,
+                          tooltip: 'Refresh notifications',
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    ..._notifications.map((notification) => _buildNotificationCard(
+                      notification: notification,
+                      cardColor: cardColor,
+                      textPrimary: textPrimary,
+                      colorPrimary: colorPrimary,
+                      cardRadius: cardRadius,
+                      isDark: isDark,
+                    )),
+                    SizedBox(height: 20),
+                  ],
+
+                  // Empty state when no invites or notifications
+                  if (_pendingInvites.isEmpty && _notifications.isEmpty)
+                    Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.notifications_none,
+                              size: 64,
+                              color: isDark ? Colors.white24 : Colors.grey[400],
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              "No pending invitations",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: textPrimary,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              "You're all caught up!",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: textPrimary.withOpacity(0.6),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
                 ],
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildInviteCard({
+    required Map<String, dynamic> invite,
+    required Color cardColor,
+    required Color textPrimary,
+    required Color colorPrimary,
+    required double cardRadius,
+    required bool isDark,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(cardRadius),
+        border: Border.all(
+          color: Colors.orange.withOpacity(0.3),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.mail_outline,
+                    color: Colors.orange,
+                    size: 24,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        invite['groupName'] ?? 'Group',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Invited by ${invite['senderName'] ?? 'Someone'}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: textPrimary.withOpacity(0.6),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _handleAcceptInvite(
+                      invite['id'],
+                      invite['groupName'] ?? 'Group',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Accept',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _handleRejectInvite(
+                      invite['id'],
+                      invite['groupName'] ?? 'Group',
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: BorderSide(color: Colors.red, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text(
+                      'Decline',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationCard({
+    required Map<String, dynamic> notification,
+    required Color cardColor,
+    required Color textPrimary,
+    required Color colorPrimary,
+    required double cardRadius,
+    required bool isDark,
+  }) {
+    final type = notification['type'] ?? 'info';
+    Color accentColor;
+    IconData icon;
+
+    switch (type) {
+      case 'accepted':
+        accentColor = Colors.green;
+        icon = Icons.check_circle_outline;
+        break;
+      case 'rejected':
+        accentColor = Colors.red;
+        icon = Icons.cancel_outlined;
+        break;
+      default:
+        accentColor = colorPrimary;
+        icon = Icons.info_outline;
+    }
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(cardRadius),
+        border: Border.all(
+          color: accentColor.withOpacity(0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: accentColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: accentColor,
+                size: 24,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notification['title'] ?? 'Notification',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (notification['message'] != null) ...[
+                    SizedBox(height: 4),
+                    Text(
+                      notification['message'],
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: textPrimary.withOpacity(0.7),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  if (notification['timestamp'] != null) ...[
+                    SizedBox(height: 4),
+                    Text(
+                      notification['timestamp'],
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: textPrimary.withOpacity(0.5),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.close, size: 20),
+              color: textPrimary.withOpacity(0.5),
+              onPressed: () => _dismissNotification(notification['id']),
+              tooltip: 'Dismiss',
+              padding: EdgeInsets.zero,
+              constraints: BoxConstraints(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -342,6 +821,10 @@ class _HomePanelState extends State<HomePanel> {
               type: BottomNavigationBarType.fixed,
               onTap: (index) {
                 svc.selectedIndex = index;
+                if (index == 0) {
+                  _loadPendingInvites();
+                  _loadNotifications();
+                }
               },
             );
           },

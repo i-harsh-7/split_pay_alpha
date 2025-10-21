@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../components/header.dart';
 import '../services/group_service.dart';
 import '../services/auth_service.dart';
+import '../services/invite_service.dart';
 
 class GroupDetailsPage extends StatefulWidget {
   final String groupId;
@@ -21,6 +21,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   String _groupDescription = '';
   int _memberCount = 0;
   List<Map<String, String>> _members = [];
+  String? _adminId;
+  String? _currentUserId;
+  bool _isAdmin = false;
 
   @override
   void initState() {
@@ -39,8 +42,15 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       final groupData = await groupService.fetchGroupDetails(widget.groupId);
 
       if (groupData != null) {
-        // Get current user info
         final currentUser = await AuthService.getProfile();
+        
+        // Get admin/creator ID
+        final createdByField = groupData['createdBy'];
+        if (createdByField is Map) {
+          _adminId = createdByField['_id']?.toString() ?? createdByField['id']?.toString();
+        } else if (createdByField is String) {
+          _adminId = createdByField;
+        }
         
         setState(() {
           _groupName = groupData['name']?.toString() ?? 'Group';
@@ -49,15 +59,23 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           final membersField = groupData['members'];
           _members = [];
           
-          // Always add current user first
           if (currentUser != null) {
+            _currentUserId = currentUser.email; // Using email as ID for comparison
             final userEmail = currentUser.email.isNotEmpty ? currentUser.email : 'user@example.com';
             final userId = (userEmail.hashCode.abs() % 70) + 1;
+            
+            // Check if current user is admin
+            if (_adminId != null && createdByField is Map) {
+              final adminEmail = createdByField['email']?.toString() ?? '';
+              _isAdmin = (adminEmail == currentUser.email);
+            }
+            
             _members.add({
               'name': currentUser.name,
               'email': userEmail,
               'avatar': 'https://i.pravatar.cc/150?img=$userId',
               'isCurrentUser': 'true',
+              'isAdmin': _isAdmin.toString(),
             });
           }
           
@@ -69,18 +87,19 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 final email = m['email']?.toString() ?? '';
                 final name = m['name']?.toString() ?? m['username']?.toString() ?? 'Member';
                 
-                // Skip if this is the current user (already added)
                 if (currentUser != null && email == currentUser.email) {
                   continue;
                 }
                 
                 final id = (email.hashCode.abs() % 70) + 1;
+                final memberIsAdmin = (_adminId != null && m['_id']?.toString() == _adminId);
                 
                 _members.add({
                   'name': name,
                   'email': email,
                   'avatar': 'https://i.pravatar.cc/150?img=$id',
                   'isCurrentUser': 'false',
+                  'isAdmin': memberIsAdmin.toString(),
                 });
               }
             }
@@ -88,7 +107,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
             _memberCount = 1;
           }
           
-          // Ensure count is at least 1 (for current user)
           if (_memberCount < 1) _memberCount = 1;
           
           _isLoading = false;
@@ -107,24 +125,163 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     }
   }
 
-  void _inviteViaLink() {
-    final inviteLink = 'https://splitpay.app/join/${widget.groupId}';
-    
-    Clipboard.setData(ClipboardData(text: inviteLink));
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
+  void _inviteViaEmail() {
+    if (!_isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.lock, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Only admin can invite members')),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+
+    final TextEditingController emailController = TextEditingController();
+    final theme = Theme.of(context);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.white),
+            Icon(Icons.email, color: theme.primaryColor, size: 28),
             SizedBox(width: 12),
-            Expanded(child: Text('Invite link copied to clipboard!')),
+            Text('Invite Member'),
           ],
         ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Enter the email address of the person you want to invite:',
+              style: TextStyle(fontSize: 14),
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                hintText: 'friend@example.com',
+                prefixIcon: Icon(Icons.alternate_email),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              
+              if (email.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Please enter an email address'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+              if (!emailRegex.hasMatch(email)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Please enter a valid email address'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              Navigator.of(ctx).pop();
+
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx) => Center(
+                  child: Container(
+                    padding: EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Sending invite...'),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+
+              try {
+                final result = await InviteService.sendInvite(
+                  groupId: widget.groupId,
+                  friendEmail: email,
+                );
+
+                Navigator.of(context).pop();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(
+                          result['success'] ? Icons.check_circle : Icons.error,
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(child: Text(result['message'])),
+                      ],
+                    ),
+                    backgroundColor: result['success'] ? Colors.green : Colors.red,
+                    duration: Duration(seconds: 3),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              } catch (e) {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: ${e.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primaryColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text('Send Invite'),
+          ),
+        ],
       ),
     );
   }
@@ -241,7 +398,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Hero Section with Gradient
                             Container(
                               width: double.infinity,
                               decoration: BoxDecoration(
@@ -262,7 +418,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
                               child: Column(
                                 children: [
-                                  // Avatar Stack
                                   if (_members.isNotEmpty)
                                     Container(
                                       height: 80,
@@ -270,7 +425,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                     ),
                                   const SizedBox(height: 18),
                                   
-                                  // Group Name
                                   Text(
                                     _groupName,
                                     style: TextStyle(
@@ -283,7 +437,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                   ),
                                   const SizedBox(height: 8),
                                   
-                                  // Member Count Badge
                                   Container(
                                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                                     decoration: BoxDecoration(
@@ -315,7 +468,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                     ),
                                   ),
                                   
-                                  // Description Card
                                   if (_groupDescription.isNotEmpty) ...[
                                     const SizedBox(height: 16),
                                     Container(
@@ -373,7 +525,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
                             const SizedBox(height: 24),
 
-                            // Action Buttons Section
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 20),
                               child: Column(
@@ -389,7 +540,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                   ),
                                   const SizedBox(height: 14),
                                   
-                                  // Add Bill Button
                                   _buildActionCard(
                                     icon: Icons.receipt_long,
                                     title: 'Add Bill',
@@ -403,16 +553,18 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                   
                                   const SizedBox(height: 12),
                                   
-                                  // Invite Button
                                   _buildActionCard(
-                                    icon: Icons.link,
+                                    icon: Icons.person_add,
                                     title: 'Invite Members',
-                                    subtitle: 'Share invite link via any app',
-                                    color: Colors.green,
-                                    onTap: _inviteViaLink,
+                                    subtitle: _isAdmin 
+                                        ? 'Send invitation via email' 
+                                        : 'Only admin can invite members',
+                                    color: _isAdmin ? Colors.green : Colors.grey,
+                                    onTap: _inviteViaEmail,
                                     cardColor: cardColor,
                                     textColor: textColor,
                                     isDark: isDark,
+                                    isDisabled: !_isAdmin,
                                   ),
                                 ],
                               ),
@@ -420,7 +572,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
                             const SizedBox(height: 28),
 
-                            // Members Section
                             if (_members.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -465,6 +616,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                       textColor: textColor,
                                       isDark: isDark,
                                       isCurrentUser: member['isCurrentUser'] == 'true',
+                                      isAdmin: member['isAdmin'] == 'true',
+                                      primaryColor: theme.primaryColor,
                                     )),
                                   ],
                                 ),
@@ -489,73 +642,78 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     required Color cardColor,
     required Color textColor,
     required bool isDark,
+    bool isDisabled = false,
   }) {
-    return Material(
-      color: cardColor,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
+    return Opacity(
+      opacity: isDisabled ? 0.6 : 1.0,
+      child: Material(
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: color.withOpacity(0.2),
-              width: 1.5,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: color.withOpacity(0.2),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 26,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 26,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: textColor.withOpacity(0.6),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: textColor.withOpacity(0.6),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: textColor.withOpacity(0.3),
-              ),
-            ],
+                if (!isDisabled)
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: textColor.withOpacity(0.3),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -569,7 +727,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     required Color cardColor,
     required Color textColor,
     required bool isDark,
+    required Color primaryColor,
     bool isCurrentUser = false,
+    bool isAdmin = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -578,7 +738,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         color: cardColor,
         borderRadius: BorderRadius.circular(14),
         border: isCurrentUser 
-            ? Border.all(color: Theme.of(context).primaryColor.withOpacity(0.5), width: 2)
+            ? Border.all(color: primaryColor.withOpacity(0.5), width: 2)
             : null,
         boxShadow: [
           BoxShadow(
@@ -590,18 +750,40 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       ),
       child: Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Theme.of(context).primaryColor.withOpacity(0.3),
-                width: 2,
+          Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: primaryColor.withOpacity(0.3),
+                    width: 2,
+                  ),
+                ),
+                child: CircleAvatar(
+                  radius: 24,
+                  backgroundImage: NetworkImage(avatar),
+                ),
               ),
-            ),
-            child: CircleAvatar(
-              radius: 24,
-              backgroundImage: NetworkImage(avatar),
-            ),
+              if (isAdmin)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.amber,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: cardColor, width: 2),
+                    ),
+                    child: Icon(
+                      Icons.star,
+                      size: 12,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -626,7 +808,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor.withOpacity(0.15),
+                          color: primaryColor.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -634,7 +816,25 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
+                            color: primaryColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (isAdmin) ...[
+                      SizedBox(width: 8),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Admin',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber[700],
                           ),
                         ),
                       ),
@@ -734,7 +934,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       );
     }
 
-    // 3 or more avatars
     return Stack(
       alignment: Alignment.center,
       children: [
