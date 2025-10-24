@@ -180,14 +180,23 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     return Scaffold(
       backgroundColor: backgroundColor,
       resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        bottom: true,
-        child: Column(
-          children: [
-            const Header(
-              title: "Create Group",
-              heightFactor: 0.12,
-            ),
+      // body: SafeArea(
+      //   bottom: true,
+      //   child: Column(
+      //     children: [
+      //       const Header(
+      //         title: "Create Group",
+      //         heightFactor: 0.12,
+      //       ),\
+
+      body: Column(
+        children: [
+          const Header(
+            title: "Create Group",
+            heightFactor: 0.12,
+          ),
+      //   ],
+      // )
 
             Expanded(
               child: AnimatedPadding(
@@ -379,7 +388,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
             ),
           ],
         ),
-      ),
-    );
+      );
+
   }
 }

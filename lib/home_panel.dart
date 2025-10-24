@@ -803,13 +803,6 @@ class _HomePanelState extends State<HomePanel> {
             );
           },
         ),
-        floatingActionButton: Provider.of<GroupService>(context).selectedIndex == 2
-            ? FloatingActionButton(
-                onPressed: () {},
-                backgroundColor: colorPrimary,
-                child: Icon(Icons.add),
-              )
-            : null,
         bottomNavigationBar: Consumer<GroupService>(
           builder: (context, svc, _) {
             return BottomNavigationBar(

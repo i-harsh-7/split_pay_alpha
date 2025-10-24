@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../components/header.dart';
+import 'add_bill.dart';
+import 'members.dart';
 import '../services/group_service.dart';
 import '../services/auth_service.dart';
 import '../services/invite_service.dart';
@@ -286,23 +288,156 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
+  // Add Bill
   void _addBill() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.info, color: Colors.white),
-            SizedBox(width: 12),
-            Expanded(child: Text('Add Bill feature coming soon!')),
-          ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddBillPage(
+          groupId: widget.groupId,
+          members: _members,
         ),
-        backgroundColor: Theme.of(context).primaryColor,
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
+
+  // Delete Group
+  void _showDeleteGroupDialog() {
+    if (!_isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.lock, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Only admin can delete the group')),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 12),
+            Text('Delete Group'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete "$_groupName"? This action cannot be undone and will remove all group data.',
+          style: TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancel', style: TextStyle(color: theme.primaryColor)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _deleteGroup();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteGroup() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Center(
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Deleting group...'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final groupService = Provider.of<GroupService>(context, listen: false);
+      final success = await groupService.deleteGroup(widget.groupId);
+
+      Navigator.of(context).pop();
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Group deleted successfully')),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        
+        // Navigate back to groups list
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Failed to delete group')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -436,38 +571,59 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                     textAlign: TextAlign.center,
                                   ),
                                   const SizedBox(height: 8),
-                                  
-                                  Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: theme.primaryColor.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: theme.primaryColor.withOpacity(0.3),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.people,
-                                          size: 16,
-                                          color: theme.primaryColor,
-                                        ),
-                                        SizedBox(width: 6),
-                                        Text(
-                                          "$_memberCount member${_memberCount != 1 ? 's' : ''}",
-                                          style: TextStyle(
-                                            color: theme.primaryColor,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
+
+                                  InkWell(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => MembersPage(
+                                            groupName: _groupName,
+                                            members: _members,
+                                            primaryColor: theme.primaryColor,
                                           ),
                                         ),
-                                      ],
+                                      );
+                                    },
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: theme.primaryColor.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: theme.primaryColor.withOpacity(0.3),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.people,
+                                            size: 16,
+                                            color: theme.primaryColor,
+                                          ),
+                                          SizedBox(width: 6),
+                                          Text(
+                                            "$_memberCount member${_memberCount != 1 ? 's' : ''}",
+                                            style: TextStyle(
+                                              color: theme.primaryColor,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          SizedBox(width: 4),
+                                          Icon(
+                                            Icons.arrow_forward_ios,
+                                            size: 12,
+                                            color: theme.primaryColor,
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                  
+
                                   if (_groupDescription.isNotEmpty) ...[
                                     const SizedBox(height: 16),
                                     Container(
@@ -566,63 +722,27 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                     isDark: isDark,
                                     isDisabled: !_isAdmin,
                                   ),
+                                  
+                                  const SizedBox(height: 12),
+                                  
+                                  _buildActionCard(
+                                    icon: Icons.delete_outline,
+                                    title: 'Delete Group',
+                                    subtitle: _isAdmin 
+                                        ? 'Permanently delete this group' 
+                                        : 'Only admin can delete the group',
+                                    color: _isAdmin ? Colors.red : Colors.grey,
+                                    onTap: _showDeleteGroupDialog,
+                                    cardColor: cardColor,
+                                    textColor: textColor,
+                                    isDark: isDark,
+                                    isDisabled: !_isAdmin,
+                                  ),
                                 ],
                               ),
                             ),
 
                             const SizedBox(height: 28),
-
-                            if (_members.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          'Members',
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: textColor,
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: theme.primaryColor.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Text(
-                                            '${_members.length}',
-                                            style: TextStyle(
-                                              color: theme.primaryColor,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 14),
-                                    
-                                    ..._members.map((member) => _buildMemberCard(
-                                      name: member['name']!,
-                                      email: member['email']!,
-                                      avatar: member['avatar']!,
-                                      cardColor: cardColor,
-                                      textColor: textColor,
-                                      isDark: isDark,
-                                      isCurrentUser: member['isCurrentUser'] == 'true',
-                                      isAdmin: member['isAdmin'] == 'true',
-                                      primaryColor: theme.primaryColor,
-                                    )),
-                                  ],
-                                ),
-                              ),
-
                             const SizedBox(height: 32),
                           ],
                         ),
@@ -716,147 +836,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildMemberCard({
-    required String name,
-    required String email,
-    required String avatar,
-    required Color cardColor,
-    required Color textColor,
-    required bool isDark,
-    required Color primaryColor,
-    bool isCurrentUser = false,
-    bool isAdmin = false,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(14),
-        border: isCurrentUser 
-            ? Border.all(color: primaryColor.withOpacity(0.5), width: 2)
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Stack(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: primaryColor.withOpacity(0.3),
-                    width: 2,
-                  ),
-                ),
-                child: CircleAvatar(
-                  radius: 24,
-                  backgroundImage: NetworkImage(avatar),
-                ),
-              ),
-              if (isAdmin)
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.amber,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: cardColor, width: 2),
-                    ),
-                    child: Icon(
-                      Icons.star,
-                      size: 12,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        name,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isCurrentUser) ...[
-                      SizedBox(width: 8),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: primaryColor.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'You',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                    if (isAdmin) ...[
-                      SizedBox(width: 8),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Admin',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.amber[700],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (email.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    email,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: textColor.withOpacity(0.6),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
