@@ -138,18 +138,21 @@ class MembersPage extends StatelessWidget {
                     SizedBox(height: 14),
 
                     // Members list
-                    ...members.map((member) => _buildMemberCard(
-                      context: context,
-                      name: member['name']!,
-                      email: member['email']!,
-                      avatar: member['avatar']!,
-                      cardColor: cardColor,
-                      textColor: textColor,
-                      isDark: isDark,
-                      isCurrentUser: member['isCurrentUser'] == 'true',
-                      isAdmin: member['isAdmin'] == 'true',
-                      primaryColor: primaryColor,
-                    )),
+                    ...members.map((member) {
+                      print('Building member card for: ${member['name']}, isAdmin: ${member['isAdmin']}');
+                      return _buildMemberCard(
+                        context: context,
+                        name: member['name']!,
+                        email: member['email']!,
+                        avatar: member['avatar']!,
+                        cardColor: cardColor,
+                        textColor: textColor,
+                        isDark: isDark,
+                        isCurrentUser: member['isCurrentUser'] == 'true',
+                        isAdmin: member['isAdmin'] == 'true',
+                        primaryColor: primaryColor,
+                      );
+                    }),
 
                     SizedBox(height: 20),
                   ],

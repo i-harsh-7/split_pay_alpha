@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../components/header.dart';
+import '../services/auth_service.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -11,31 +12,37 @@ class EditProfilePage extends StatefulWidget {
 class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
 
   bool _isLoading = false;
+  bool _isLoadingProfile = true;
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill with current user data
     _loadUserData();
   }
 
-  void _loadUserData() {
-    // TODO: Load actual user data from backend or local storage
-    // For now, using dummy data
-    _nameController.text = "Jane Doe";
-    _emailController.text = "jane.doe@example.com";
-    _phoneController.text = "+1 555-123-4567";
+  Future<void> _loadUserData() async {
+    setState(() => _isLoadingProfile = true);
+
+    try {
+      final user = await AuthService.getProfile();
+      if (user != null && mounted) {
+        setState(() {
+          _nameController.text = user.name;
+          _isLoadingProfile = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingProfile = false);
+      }
+    }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
@@ -55,37 +62,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
     setState(() => _isLoading = true);
 
     try {
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 1));
-
-      // TODO: Add backend integration here
-      // Example:
-      // final response = await http.put(
-      //   Uri.parse('YOUR_API_ENDPOINT/user/update'),
-      //   headers: {'Content-Type': 'application/json'},
-      //   body: jsonEncode({
-      //     'name': _nameController.text.trim(),
-      //     'email': _emailController.text.trim(),
-      //     'phone': _phoneController.text.trim(),
-      //   }),
-      // );
+      final result = await AuthService.updateProfile(
+        name: _nameController.text.trim(),
+      );
 
       if (!mounted) return;
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Profile updated successfully!"),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
+      if (result['success']) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
 
-      setState(() => _isLoading = false);
+        setState(() => _isLoading = false);
 
-      // Optional: Navigate back after success
-      // Navigator.of(context).pop();
-
+        // Optional: Navigate back after success
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        setState(() => _isLoading = false);
+      }
     } catch (e) {
       if (!mounted) return;
 
@@ -123,7 +128,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
           // Form Content
           Expanded(
-            child: SingleChildScrollView(
+            child: _isLoadingProfile
+                ? Center(
+              child: CircularProgressIndicator(
+                color: primaryColor,
+              ),
+            )
+                : SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               child: Form(
@@ -256,132 +267,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         }
                         return null;
                       },
-                      textInputAction: TextInputAction.next,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Email Label
-                    Text(
-                      "Email Address",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Email Field
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      style: TextStyle(color: textColor, fontSize: 15),
-                      decoration: InputDecoration(
-                        hintText: "Enter your email",
-                        hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
-                        filled: true,
-                        fillColor: cardColor,
-                        prefixIcon: Icon(Icons.email_outlined, color: primaryColor),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: isDark
-                                ? Colors.white.withOpacity(0.1)
-                                : Colors.grey.withOpacity(0.2),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: primaryColor, width: 2),
-                        ),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.red, width: 1),
-                        ),
-                        focusedErrorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.red, width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your email';
-                        }
-                        // Basic email validation
-                        final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                        if (!emailRegex.hasMatch(value.trim())) {
-                          return 'Please enter a valid email';
-                        }
-                        return null;
-                      },
-                      textInputAction: TextInputAction.next,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Phone Label
-                    Text(
-                      "Phone Number",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Phone Field
-                    TextFormField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      style: TextStyle(color: textColor, fontSize: 15),
-                      decoration: InputDecoration(
-                        hintText: "Enter your phone number",
-                        hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
-                        filled: true,
-                        fillColor: cardColor,
-                        prefixIcon: Icon(Icons.phone_outlined, color: primaryColor),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: isDark
-                                ? Colors.white.withOpacity(0.1)
-                                : Colors.grey.withOpacity(0.2),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: primaryColor, width: 2),
-                        ),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.red, width: 1),
-                        ),
-                        focusedErrorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.red, width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your phone number';
-                        }
-                        if (value.trim().length < 10) {
-                          return 'Please enter a valid phone number';
-                        }
-                        return null;
-                      },
                       textInputAction: TextInputAction.done,
                     ),
 
@@ -405,21 +290,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         ),
                         child: _isLoading
                             ? const SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
                             : const Text(
-                                "Update Profile",
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
+                          "Update Profile",
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
 

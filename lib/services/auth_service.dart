@@ -4,13 +4,11 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
-
 class AuthService {
   static const _base = 'https://split-pay-q4wa.onrender.com/api/v1';
   static User? _cachedUser;
 
   /// Sign up with name, email, phone and password.
-  /// Returns the stored token on success.
   static Future<String> signUp({
     required String name,
     required String email,
@@ -32,10 +30,9 @@ class AuthService {
         } on MissingPluginException {
           _inMemory['auth_token'] = token;
         }
-        
-        // Cache user from signup response
+
         try {
-          final Map<String, dynamic>? userMap = body['user'] is Map<String, dynamic> 
+          final Map<String, dynamic>? userMap = body['user'] is Map<String, dynamic>
               ? body['user'] as Map<String, dynamic>
               : null;
           if (userMap != null) {
@@ -45,7 +42,7 @@ class AuthService {
             );
           }
         } catch (_) {}
-        
+
         return token;
       }
       throw Exception(body['message'] ?? 'Sign up succeeded but no token returned');
@@ -53,14 +50,13 @@ class AuthService {
     throw Exception(body['message'] ?? 'Sign up failed');
   }
 
-  /// Login with email and password. Returns token on success.
+  /// Login with email and password.
   static Future<String> login({
     required String email,
     required String password,
   }) async {
-    // Clear cached user on new login
     _cachedUser = null;
-    
+
     final uri = Uri.parse('$_base/login');
     final res = await http.post(uri,
         headers: {'Content-Type': 'application/json'},
@@ -76,23 +72,20 @@ class AuthService {
         } on MissingPluginException {
           _inMemory['auth_token'] = token;
         }
-        
-        // Cache user if available in login payload
+
         try {
           final Map<String, dynamic>? userMap =
-              (body['user'] is Map<String, dynamic>) ? body['user'] as Map<String, dynamic> :
-              (body['data'] is Map<String, dynamic> && body['data']['user'] is Map<String, dynamic>)
-                  ? body['data']['user'] as Map<String, dynamic>
-                  : null;
+          (body['user'] is Map<String, dynamic>) ? body['user'] as Map<String, dynamic> :
+          (body['data'] is Map<String, dynamic> && body['data']['user'] is Map<String, dynamic>)
+              ? body['data']['user'] as Map<String, dynamic>
+              : null;
           if (userMap != null) {
             _cachedUser = User(
               name: userMap['name']?.toString() ?? 'User',
               email: userMap['email']?.toString() ?? '',
             );
           }
-        } catch (_) {
-          // ignore user caching errors
-        }
+        } catch (_) {}
         return token;
       }
       throw Exception(body['message'] ?? 'Login succeeded but no token returned');
@@ -100,15 +93,192 @@ class AuthService {
     throw Exception(body['message'] ?? 'Login failed');
   }
 
+  /// Change password - FIXED to match backend expectations
+  static Future<Map<String, dynamic>> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    final token = await getToken();
+    if (token == null) {
+      return {
+        'success': false,
+        'message': 'Not authenticated. Please login again.',
+      };
+    }
+
+    // Get user email from profile
+    final profile = await getProfile();
+    if (profile == null || profile.email.isEmpty) {
+      return {
+        'success': false,
+        'message': 'Could not retrieve user email',
+      };
+    }
+
+    final uri = Uri.parse('$_base/changePassword');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    final body = jsonEncode({
+      'email': profile.email, // Backend expects email
+      'oldPassword': oldPassword,
+      'newPassword': newPassword,
+    });
+
+    try {
+      final res = await http.patch(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 15));
+
+      print('Change Password - Status: ${res.statusCode}');
+      print('Change Password - Body: ${res.body}');
+
+      if (res.body.isEmpty) {
+        if (res.statusCode == 200 || res.statusCode == 204) {
+          return {
+            'success': true,
+            'message': 'Password changed successfully',
+          };
+        } else {
+          return {
+            'success': false,
+            'message': 'Failed to change password. Status: ${res.statusCode}',
+          };
+        }
+      }
+
+      Map<String, dynamic> parsed;
+      try {
+        parsed = jsonDecode(res.body);
+      } catch (e) {
+        return {
+          'success': false,
+          'message': 'Invalid response from server',
+        };
+      }
+
+      if (res.statusCode == 200) {
+        return {
+          'success': parsed['success'] ?? true,
+          'message': parsed['message']?.toString() ?? 'Password changed successfully',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': parsed['message']?.toString() ?? 'Failed to change password',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error: ${e.toString()}',
+      };
+    }
+  }
+
+  /// Update profile - FIXED to match backend expectations
+  static Future<Map<String, dynamic>> updateProfile({
+    required String name,
+  }) async {
+    final token = await getToken();
+    if (token == null) {
+      return {
+        'success': false,
+        'message': 'Not authenticated. Please login again.',
+      };
+    }
+
+    // Get user email from profile
+    final profile = await getProfile();
+    if (profile == null || profile.email.isEmpty) {
+      return {
+        'success': false,
+        'message': 'Could not retrieve user email',
+      };
+    }
+
+    final uri = Uri.parse('$_base/updateProfile');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    final body = jsonEncode({
+      'name': name,
+      'email': profile.email, // Backend expects email
+    });
+
+    try {
+      final res = await http.patch(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 15));
+
+      print('Update Profile - Status: ${res.statusCode}');
+      print('Update Profile - Body: ${res.body}');
+
+      if (res.body.isEmpty) {
+        if (res.statusCode == 200 || res.statusCode == 204) {
+          if (_cachedUser != null) {
+            _cachedUser = User(
+              name: name,
+              email: _cachedUser!.email,
+            );
+          }
+          return {
+            'success': true,
+            'message': 'Profile updated successfully',
+          };
+        } else {
+          return {
+            'success': false,
+            'message': 'Failed to update profile. Status: ${res.statusCode}',
+          };
+        }
+      }
+
+      Map<String, dynamic> parsed;
+      try {
+        parsed = jsonDecode(res.body);
+      } catch (e) {
+        return {
+          'success': false,
+          'message': 'Invalid response from server',
+        };
+      }
+
+      if (res.statusCode == 200) {
+        if (_cachedUser != null) {
+          _cachedUser = User(
+            name: name,
+            email: _cachedUser!.email,
+          );
+        }
+
+        return {
+          'success': parsed['success'] ?? true,
+          'message': parsed['message']?.toString() ?? 'Profile updated successfully',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': parsed['message']?.toString() ?? 'Failed to update profile',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error: ${e.toString()}',
+      };
+    }
+  }
+
   static Future<void> logout() async {
-    // Clear cached user
     _cachedUser = null;
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('auth_token');
     } on MissingPluginException {
-      // Tests or some dev environments may not have the plugin registered.
       _inMemory.remove('auth_token');
     }
   }
@@ -122,7 +292,6 @@ class AuthService {
     }
   }
 
-  /// Try to fetch user profile from common endpoints. Returns null if not available.
   static Future<User?> getProfile() async {
     if (_cachedUser != null) return _cachedUser;
     final token = await getToken();
@@ -135,7 +304,8 @@ class AuthService {
         final res = await http.get(uri, headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token'
-        });
+        }).timeout(const Duration(seconds: 10));
+
         if (res.statusCode == 200) {
           final Map<String, dynamic> body = jsonDecode(res.body);
           Map<String, dynamic>? payload = body;
@@ -152,14 +322,11 @@ class AuthService {
             return _cachedUser;
           }
         }
-      } catch (e) {
-        // ignore and try next endpoint
-      }
+      } catch (e) {}
     }
     return null;
   }
-  
-  /// Clear the cached user (useful on logout)
+
   static void clearCache() {
     _cachedUser = null;
   }
@@ -172,6 +339,4 @@ class User {
   User({required this.name, required this.email});
 }
 
-
-// simple in-memory fallback for environments without shared_preferences plugin
 final Map<String, String> _inMemory = {};

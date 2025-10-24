@@ -70,6 +70,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
             if (_adminId != null && createdByField is Map) {
               final adminEmail = createdByField['email']?.toString() ?? '';
               _isAdmin = (adminEmail == currentUser.email);
+              print('Admin check - Admin email: $adminEmail, Current user email: ${currentUser.email}, Is admin: $_isAdmin');
             }
             
             _members.add({
@@ -82,8 +83,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           }
           
           if (membersField is List) {
-            _memberCount = membersField.length;
-            
             for (final m in membersField) {
               if (m is Map) {
                 final email = m['email']?.toString() ?? '';
@@ -96,6 +95,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 final id = (email.hashCode.abs() % 70) + 1;
                 final memberIsAdmin = (_adminId != null && m['_id']?.toString() == _adminId);
                 
+                print('Member: $name, Email: $email, Member ID: ${m['_id']}, Admin ID: $_adminId, Is admin: $memberIsAdmin');
+                
                 _members.add({
                   'name': name,
                   'email': email,
@@ -105,9 +106,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 });
               }
             }
-          } else {
-            _memberCount = 1;
           }
+          
+          // Set member count to the actual number of members in the list
+          _memberCount = _members.length;
           
           if (_memberCount < 1) _memberCount = 1;
           
@@ -302,141 +304,141 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   }
 
   // Delete Group
-  void _showDeleteGroupDialog() {
-    if (!_isAdmin) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.lock, color: Colors.white),
-              SizedBox(width: 12),
-              Expanded(child: Text('Only admin can delete the group')),
-            ],
-          ),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-      return;
-    }
+  // void _showDeleteGroupDialog() {
+  //   if (!_isAdmin) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(
+  //         content: Row(
+  //           children: [
+  //             Icon(Icons.lock, color: Colors.white),
+  //             SizedBox(width: 12),
+  //             Expanded(child: Text('Only admin can delete the group')),
+  //           ],
+  //         ),
+  //         backgroundColor: Colors.orange,
+  //         duration: Duration(seconds: 2),
+  //         behavior: SnackBarBehavior.floating,
+  //         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  //       ),
+  //     );
+  //     return;
+  //   }
+  //
+  //   final theme = Theme.of(context);
+  //   showDialog(
+  //     context: context,
+  //     builder: (ctx) => AlertDialog(
+  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  //       title: Row(
+  //         children: [
+  //           Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+  //           SizedBox(width: 12),
+  //           Text('Delete Group'),
+  //         ],
+  //       ),
+  //       content: Text(
+  //         'Are you sure you want to delete "$_groupName"? This action cannot be undone and will remove all group data.',
+  //         style: TextStyle(fontSize: 15),
+  //       ),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.of(ctx).pop(),
+  //           child: Text('Cancel', style: TextStyle(color: theme.primaryColor)),
+  //         ),
+  //         ElevatedButton(
+  //           onPressed: () {
+  //             Navigator.of(ctx).pop();
+  //             _deleteGroup();
+  //           },
+  //           style: ElevatedButton.styleFrom(
+  //             backgroundColor: Colors.red,
+  //             foregroundColor: Colors.white,
+  //             shape: RoundedRectangleBorder(
+  //               borderRadius: BorderRadius.circular(8),
+  //             ),
+  //           ),
+  //           child: Text('Delete'),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
-    final theme = Theme.of(context);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-            SizedBox(width: 12),
-            Text('Delete Group'),
-          ],
-        ),
-        content: Text(
-          'Are you sure you want to delete "$_groupName"? This action cannot be undone and will remove all group data.',
-          style: TextStyle(fontSize: 15),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Cancel', style: TextStyle(color: theme.primaryColor)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _deleteGroup();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _deleteGroup() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => Center(
-        child: Container(
-          padding: EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Deleting group...'),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    try {
-      final groupService = Provider.of<GroupService>(context, listen: false);
-      final success = await groupService.deleteGroup(widget.groupId);
-
-      Navigator.of(context).pop();
-
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12),
-                Expanded(child: Text('Group deleted successfully')),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            duration: Duration(seconds: 2),
-          ),
-        );
-        
-        // Navigate back to groups list
-        Navigator.of(context).pop();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.error, color: Colors.white),
-                SizedBox(width: 12),
-                Expanded(child: Text('Failed to delete group')),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
-    } catch (e) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
+  // Future<void> _deleteGroup() async {
+  //   showDialog(
+  //     context: context,
+  //     barrierDismissible: false,
+  //     builder: (ctx) => Center(
+  //       child: Container(
+  //         padding: EdgeInsets.all(20),
+  //         decoration: BoxDecoration(
+  //           color: Theme.of(context).cardColor,
+  //           borderRadius: BorderRadius.circular(12),
+  //         ),
+  //         child: Column(
+  //           mainAxisSize: MainAxisSize.min,
+  //           children: [
+  //             CircularProgressIndicator(),
+  //             SizedBox(height: 16),
+  //             Text('Deleting group...'),
+  //           ],
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  //
+  //   try {
+  //     final groupService = Provider.of<GroupService>(context, listen: false);
+  //     final success = await groupService.deleteGroup(widget.groupId);
+  //
+  //     Navigator.of(context).pop();
+  //
+  //     if (success) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Row(
+  //             children: [
+  //               Icon(Icons.check_circle, color: Colors.white),
+  //               SizedBox(width: 12),
+  //               Expanded(child: Text('Group deleted successfully')),
+  //             ],
+  //           ),
+  //           backgroundColor: Colors.green,
+  //           behavior: SnackBarBehavior.floating,
+  //           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  //           duration: Duration(seconds: 2),
+  //         ),
+  //       );
+  //
+  //       // Navigate back to groups list
+  //       Navigator.of(context).pop();
+  //     } else {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Row(
+  //             children: [
+  //               Icon(Icons.error, color: Colors.white),
+  //               SizedBox(width: 12),
+  //               Expanded(child: Text('Failed to delete group')),
+  //             ],
+  //           ),
+  //           backgroundColor: Colors.red,
+  //           behavior: SnackBarBehavior.floating,
+  //           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  //         ),
+  //       );
+  //     }
+  //   } catch (e) {
+  //     Navigator.of(context).pop();
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(
+  //         content: Text('Error: ${e.toString()}'),
+  //         backgroundColor: Colors.red,
+  //         behavior: SnackBarBehavior.floating,
+  //       ),
+  //     );
+  //   }
+  // }
 
 
   @override
@@ -482,7 +484,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                               Container(
                                 padding: EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.1),
+                                  color: Colors.red.withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
@@ -624,6 +626,34 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                     ),
                                   ),
 
+                                  const SizedBox(height: 20),
+
+                                  // Action buttons below member count
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      Expanded(
+                                        child: _buildActionButton(
+                                          icon: Icons.receipt_long,
+                                          label: 'Add Bill',
+                                          onTap: _addBill,
+                                          theme: theme,
+                                          isEnabled: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: _buildActionButton(
+                                          icon: Icons.person_add,
+                                          label: 'Invite Members',
+                                          onTap: _inviteViaEmail,
+                                          theme: theme,
+                                          isEnabled: _isAdmin,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
                                   if (_groupDescription.isNotEmpty) ...[
                                     const SizedBox(height: 16),
                                     Container(
@@ -681,13 +711,14 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
                             const SizedBox(height: 24),
 
+                            // Recent Bills Section
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 20),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Quick Actions',
+                                    'Recent Bills',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -696,48 +727,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                   ),
                                   const SizedBox(height: 14),
                                   
-                                  _buildActionCard(
-                                    icon: Icons.receipt_long,
-                                    title: 'Add Bill',
-                                    subtitle: 'Split a new expense with the group',
-                                    color: theme.primaryColor,
-                                    onTap: _addBill,
-                                    cardColor: cardColor,
-                                    textColor: textColor,
-                                    isDark: isDark,
-                                  ),
-                                  
-                                  const SizedBox(height: 12),
-                                  
-                                  _buildActionCard(
-                                    icon: Icons.person_add,
-                                    title: 'Invite Members',
-                                    subtitle: _isAdmin 
-                                        ? 'Send invitation via email' 
-                                        : 'Only admin can invite members',
-                                    color: _isAdmin ? Colors.green : Colors.grey,
-                                    onTap: _inviteViaEmail,
-                                    cardColor: cardColor,
-                                    textColor: textColor,
-                                    isDark: isDark,
-                                    isDisabled: !_isAdmin,
-                                  ),
-                                  
-                                  const SizedBox(height: 12),
-                                  
-                                  _buildActionCard(
-                                    icon: Icons.delete_outline,
-                                    title: 'Delete Group',
-                                    subtitle: _isAdmin 
-                                        ? 'Permanently delete this group' 
-                                        : 'Only admin can delete the group',
-                                    color: _isAdmin ? Colors.red : Colors.grey,
-                                    onTap: _showDeleteGroupDialog,
-                                    cardColor: cardColor,
-                                    textColor: textColor,
-                                    isDark: isDark,
-                                    isDisabled: !_isAdmin,
-                                  ),
+                                  _buildRecentBillsSection(cardColor, textColor, isDark, theme),
                                 ],
                               ),
                             ),
@@ -753,89 +743,186 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
-  Widget _buildActionCard({
+  Widget _buildActionButton({
     required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
+    required String label,
     required VoidCallback onTap,
-    required Color cardColor,
-    required Color textColor,
-    required bool isDark,
-    bool isDisabled = false,
+    required ThemeData theme,
+    required bool isEnabled,
   }) {
     return Opacity(
-      opacity: isDisabled ? 0.6 : 1.0,
+      opacity: isEnabled ? 1.0 : 0.6,
       child: Material(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          onTap: isEnabled ? onTap : null,
+          borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: color.withOpacity(0.2),
-                width: 1.5,
+                color: isEnabled 
+                    ? theme.primaryColor.withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.3),
+                width: 1,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
+              color: isEnabled 
+                  ? theme.primaryColor.withOpacity(0.05)
+                  : Colors.grey.withOpacity(0.05),
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  padding: EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: 26,
+                Icon(
+                  icon,
+                  color: isEnabled ? theme.primaryColor : Colors.grey,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isEnabled ? theme.primaryColor : Colors.grey,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: textColor.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!isDisabled)
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: textColor.withOpacity(0.3),
-                  ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildRecentBillsSection(Color cardColor, Color textColor, bool isDark, ThemeData theme) {
+    // For now, we'll show a placeholder since we don't have bill data
+    // In a real app, you would fetch bills from your service
+    final List<Map<String, dynamic>> recentBills = []; // This would be populated from your bill service
+    
+    if (recentBills.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.grey.withOpacity(0.2),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 48,
+              color: Colors.grey.withOpacity(0.6),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No bills uploaded yet',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: textColor.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Start by adding your first bill to track expenses',
+              style: TextStyle(
+                fontSize: 14,
+                color: textColor.withOpacity(0.5),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // If bills exist, show them here
+    return Column(
+      children: recentBills.map((bill) => _buildBillCard(bill, cardColor, textColor, isDark, theme)).toList(),
+    );
+  }
+
+  Widget _buildBillCard(Map<String, dynamic> bill, Color cardColor, Color textColor, bool isDark, ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.receipt,
+              color: theme.primaryColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bill['title'] ?? 'Bill',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  bill['description'] ?? 'No description',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: textColor.withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '\$${bill['amount']?.toStringAsFixed(2) ?? '0.00'}',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: theme.primaryColor,
+            ),
+          ),
+        ],
       ),
     );
   }
