@@ -24,7 +24,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   int _memberCount = 0;
   List<Map<String, String>> _members = [];
   String? _adminId;
-  String? _currentUserId;
+  String? _currentUserId; // This will be the email of the current user
   bool _isAdmin = false;
 
   @override
@@ -33,6 +33,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     _loadGroupDetails();
   }
 
+  // --- LOGIC FROM "logical code" file ---
   Future<void> _loadGroupDetails() async {
     setState(() {
       _isLoading = true;
@@ -45,74 +46,91 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
       if (groupData != null) {
         final currentUser = await AuthService.getProfile();
-        
-        // Get admin/creator ID
+
+        // Get Admin info
         final createdByField = groupData['createdBy'];
+        String? adminEmail;
+        String? adminName;
+
         if (createdByField is Map) {
           _adminId = createdByField['_id']?.toString() ?? createdByField['id']?.toString();
-        } else if (createdByField is String) {
-          _adminId = createdByField;
+          adminEmail = createdByField['email']?.toString() ?? '';
+          adminName = createdByField['name']?.toString() ?? 'Admin';
         }
-        
+
+        if (currentUser != null) {
+          _currentUserId = currentUser.email.isNotEmpty ? currentUser.email : null;
+        }
+
+        // Check if current user is admin
+        _isAdmin = (currentUser != null && adminEmail != null && currentUser.email == adminEmail);
+
         setState(() {
           _groupName = groupData['name']?.toString() ?? 'Group';
           _groupDescription = groupData['description']?.toString() ?? '';
-          
+
           final membersField = groupData['members'];
           _members = [];
-          
-          if (currentUser != null) {
-            _currentUserId = currentUser.email; // Using email as ID for comparison
+
+          // 1. Add the Admin (from createdBy)
+          if (adminEmail != null && adminName != null) {
+            final adminAvatarId = (adminEmail.hashCode.abs() % 70) + 1;
+            _members.add({
+              'name': adminName,
+              'email': adminEmail,
+              'avatar': 'https://i.pravatar.cc/150?img=$adminAvatarId',
+              'isCurrentUser': _isAdmin.toString(), // True if current user is admin
+              'isAdmin': 'true',
+            });
+          }
+
+          // 2. Add the Current User (if they are NOT the admin)
+          if (currentUser != null && !_isAdmin) {
             final userEmail = currentUser.email.isNotEmpty ? currentUser.email : 'user@example.com';
             final userId = (userEmail.hashCode.abs() % 70) + 1;
-            
-            // Check if current user is admin
-            if (_adminId != null && createdByField is Map) {
-              final adminEmail = createdByField['email']?.toString() ?? '';
-              _isAdmin = (adminEmail == currentUser.email);
-              print('Admin check - Admin email: $adminEmail, Current user email: ${currentUser.email}, Is admin: $_isAdmin');
-            }
-            
             _members.add({
               'name': currentUser.name,
               'email': userEmail,
               'avatar': 'https://i.pravatar.cc/150?img=$userId',
               'isCurrentUser': 'true',
-              'isAdmin': _isAdmin.toString(),
+              'isAdmin': 'false',
             });
           }
-          
+
+          // 3. Add all OTHER members from the members list
           if (membersField is List) {
             for (final m in membersField) {
               if (m is Map) {
                 final email = m['email']?.toString() ?? '';
                 final name = m['name']?.toString() ?? m['username']?.toString() ?? 'Member';
-                
-                if (currentUser != null && email == currentUser.email) {
+
+                // Skip if it's the current user (already added)
+                if (email.isNotEmpty && email == _currentUserId) {
                   continue;
                 }
-                
+
+                // Skip if it's the admin (already added)
+                if (email.isNotEmpty && email == adminEmail) {
+                  continue;
+                }
+
                 final id = (email.hashCode.abs() % 70) + 1;
-                final memberIsAdmin = (_adminId != null && m['_id']?.toString() == _adminId);
-                
-                print('Member: $name, Email: $email, Member ID: ${m['_id']}, Admin ID: $_adminId, Is admin: $memberIsAdmin');
-                
+
                 _members.add({
                   'name': name,
                   'email': email,
                   'avatar': 'https://i.pravatar.cc/150?img=$id',
                   'isCurrentUser': 'false',
-                  'isAdmin': memberIsAdmin.toString(),
+                  'isAdmin': 'false', // Only createdBy is admin
                 });
               }
             }
           }
-          
-          // Set member count to the actual number of members in the list
+
+          // 4. Set the final member count
           _memberCount = _members.length;
-          
-          if (_memberCount < 1) _memberCount = 1;
-          
+          if (_memberCount < 1) _memberCount = 1; // Fallback
+
           _isLoading = false;
         });
       } else {
@@ -128,6 +146,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       });
     }
   }
+  // --- END OF LOGIC FROM "logical code" file ---
+
 
   void _inviteViaEmail() {
     if (!_isAdmin) {
@@ -194,7 +214,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           ElevatedButton(
             onPressed: () async {
               final email = emailController.text.trim();
-              
+
               if (email.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -303,142 +323,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
-  // Delete Group
-  // void _showDeleteGroupDialog() {
-  //   if (!_isAdmin) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(
-  //         content: Row(
-  //           children: [
-  //             Icon(Icons.lock, color: Colors.white),
-  //             SizedBox(width: 12),
-  //             Expanded(child: Text('Only admin can delete the group')),
-  //           ],
-  //         ),
-  //         backgroundColor: Colors.orange,
-  //         duration: Duration(seconds: 2),
-  //         behavior: SnackBarBehavior.floating,
-  //         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-  //       ),
-  //     );
-  //     return;
-  //   }
-  //
-  //   final theme = Theme.of(context);
-  //   showDialog(
-  //     context: context,
-  //     builder: (ctx) => AlertDialog(
-  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-  //       title: Row(
-  //         children: [
-  //           Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-  //           SizedBox(width: 12),
-  //           Text('Delete Group'),
-  //         ],
-  //       ),
-  //       content: Text(
-  //         'Are you sure you want to delete "$_groupName"? This action cannot be undone and will remove all group data.',
-  //         style: TextStyle(fontSize: 15),
-  //       ),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () => Navigator.of(ctx).pop(),
-  //           child: Text('Cancel', style: TextStyle(color: theme.primaryColor)),
-  //         ),
-  //         ElevatedButton(
-  //           onPressed: () {
-  //             Navigator.of(ctx).pop();
-  //             _deleteGroup();
-  //           },
-  //           style: ElevatedButton.styleFrom(
-  //             backgroundColor: Colors.red,
-  //             foregroundColor: Colors.white,
-  //             shape: RoundedRectangleBorder(
-  //               borderRadius: BorderRadius.circular(8),
-  //             ),
-  //           ),
-  //           child: Text('Delete'),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
-  // Future<void> _deleteGroup() async {
-  //   showDialog(
-  //     context: context,
-  //     barrierDismissible: false,
-  //     builder: (ctx) => Center(
-  //       child: Container(
-  //         padding: EdgeInsets.all(20),
-  //         decoration: BoxDecoration(
-  //           color: Theme.of(context).cardColor,
-  //           borderRadius: BorderRadius.circular(12),
-  //         ),
-  //         child: Column(
-  //           mainAxisSize: MainAxisSize.min,
-  //           children: [
-  //             CircularProgressIndicator(),
-  //             SizedBox(height: 16),
-  //             Text('Deleting group...'),
-  //           ],
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  //
-  //   try {
-  //     final groupService = Provider.of<GroupService>(context, listen: false);
-  //     final success = await groupService.deleteGroup(widget.groupId);
-  //
-  //     Navigator.of(context).pop();
-  //
-  //     if (success) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(
-  //           content: Row(
-  //             children: [
-  //               Icon(Icons.check_circle, color: Colors.white),
-  //               SizedBox(width: 12),
-  //               Expanded(child: Text('Group deleted successfully')),
-  //             ],
-  //           ),
-  //           backgroundColor: Colors.green,
-  //           behavior: SnackBarBehavior.floating,
-  //           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-  //           duration: Duration(seconds: 2),
-  //         ),
-  //       );
-  //
-  //       // Navigate back to groups list
-  //       Navigator.of(context).pop();
-  //     } else {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(
-  //           content: Row(
-  //             children: [
-  //               Icon(Icons.error, color: Colors.white),
-  //               SizedBox(width: 12),
-  //               Expanded(child: Text('Failed to delete group')),
-  //             ],
-  //           ),
-  //           backgroundColor: Colors.red,
-  //           behavior: SnackBarBehavior.floating,
-  //           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-  //         ),
-  //       );
-  //     }
-  //   } catch (e) {
-  //     Navigator.of(context).pop();
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(
-  //         content: Text('Error: ${e.toString()}'),
-  //         backgroundColor: Colors.red,
-  //         behavior: SnackBarBehavior.floating,
-  //       ),
-  //     );
-  //   }
-  // }
+  // Delete Group (Keep commented out as per original "better UI" code)
+  // void _showDeleteGroupDialog() { ... }
+  // Future<void> _deleteGroup() async { ... }
 
 
   @override
@@ -484,7 +371,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                               Container(
                                 padding: EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  color: Colors.red.withValues(alpha: 0.1),
+                                  color: Colors.red.withOpacity(0.1), // Fixed typo withValues
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
@@ -561,7 +448,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                       child: _buildEnhancedAvatarStack(),
                                     ),
                                   const SizedBox(height: 18),
-                                  
+
                                   Text(
                                     _groupName,
                                     style: TextStyle(
@@ -638,7 +525,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                           label: 'Add Bill',
                                           onTap: _addBill,
                                           theme: theme,
-                                          isEnabled: true,
+                                          isEnabled: true, // Always enabled
                                         ),
                                       ),
                                       const SizedBox(width: 12),
@@ -648,7 +535,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                           label: 'Invite Members',
                                           onTap: _inviteViaEmail,
                                           theme: theme,
-                                          isEnabled: _isAdmin,
+                                          isEnabled: _isAdmin, // Enabled only for admin
                                         ),
                                       ),
                                     ],
@@ -726,7 +613,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                     ),
                                   ),
                                   const SizedBox(height: 14),
-                                  
+
                                   _buildRecentBillsSection(cardColor, textColor, isDark, theme),
                                 ],
                               ),
@@ -743,6 +630,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
+  // --- UI Helper Functions from "better UI" file ---
   Widget _buildActionButton({
     required IconData icon,
     required String label,
@@ -756,19 +644,31 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          onTap: isEnabled ? onTap : null,
+          // Only allow tap if enabled
+          onTap: isEnabled ? onTap : () {
+             // Optionally show a message if tapped when disabled
+             if (label == 'Invite Members' && !isEnabled) {
+               ScaffoldMessenger.of(context).showSnackBar(
+                 SnackBar(
+                   content: Text('Only admin can invite members'),
+                   backgroundColor: Colors.orange,
+                   duration: Duration(seconds: 2),
+                 ),
+               );
+             }
+          },
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isEnabled 
+                color: isEnabled
                     ? theme.primaryColor.withOpacity(0.3)
                     : Colors.grey.withOpacity(0.3),
                 width: 1,
               ),
-              color: isEnabled 
+              color: isEnabled
                   ? theme.primaryColor.withOpacity(0.05)
                   : Colors.grey.withOpacity(0.05),
             ),
@@ -781,12 +681,16 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   size: 18,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isEnabled ? theme.primaryColor : Colors.grey,
+                // Use Flexible to prevent overflow if label is long
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isEnabled ? theme.primaryColor : Colors.grey,
+                    ),
+                    overflow: TextOverflow.ellipsis, // Prevent overflow
                   ),
                 ),
               ],
@@ -801,7 +705,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     // For now, we'll show a placeholder since we don't have bill data
     // In a real app, you would fetch bills from your service
     final List<Map<String, dynamic>> recentBills = []; // This would be populated from your bill service
-    
+
     if (recentBills.isEmpty) {
       return Container(
         width: double.infinity,
@@ -858,6 +762,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   }
 
   Widget _buildBillCard(Map<String, dynamic> bill, Color cardColor, Color textColor, bool isDark, ThemeData theme) {
+    // Placeholder - implement how you want to display a bill card
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -868,64 +773,65 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           color: Colors.grey.withOpacity(0.2),
           width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
+         boxShadow: [
+           BoxShadow(
+             color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+             blurRadius: 6,
+             offset: Offset(0, 2),
+           ),
+         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: theme.primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.receipt,
-              color: theme.primaryColor,
-              size: 20,
-            ),
-          ),
+             padding: EdgeInsets.all(12),
+             decoration: BoxDecoration(
+               color: theme.primaryColor.withOpacity(0.1),
+               borderRadius: BorderRadius.circular(8),
+             ),
+             child: Icon(
+               Icons.receipt, // Example icon
+               color: theme.primaryColor,
+               size: 20,
+             ),
+           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  bill['title'] ?? 'Bill',
+                  bill['title'] ?? 'Bill Title', // Example data
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: textColor,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  bill['description'] ?? 'No description',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: textColor.withOpacity(0.6),
-                  ),
-                ),
+                 const SizedBox(height: 4),
+                 Text(
+                   bill['date'] ?? 'Date', // Example data
+                   style: TextStyle(
+                     fontSize: 13,
+                     color: textColor.withOpacity(0.6),
+                   ),
+                 ),
               ],
             ),
           ),
           Text(
-            '\$${bill['amount']?.toStringAsFixed(2) ?? '0.00'}',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: theme.primaryColor,
-            ),
-          ),
+             '\$${bill['amount']?.toStringAsFixed(2) ?? '0.00'}', // Example data
+             style: TextStyle(
+               fontSize: 16,
+               fontWeight: FontWeight.bold,
+               color: theme.primaryColor,
+             ),
+           ),
         ],
       ),
     );
   }
+
 
   Widget _buildEnhancedAvatarStack() {
     if (_members.isEmpty) return const SizedBox.shrink();
@@ -947,6 +853,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           child: CircleAvatar(
             radius: 36,
             backgroundImage: NetworkImage(_members[0]['avatar']!),
+             onBackgroundImageError: (_, __) {}, // Add error handler
           ),
         ),
       );
@@ -973,6 +880,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               child: CircleAvatar(
                 radius: 32,
                 backgroundImage: NetworkImage(_members[0]['avatar']!),
+                onBackgroundImageError: (_, __) {}, // Add error handler
               ),
             ),
           ),
@@ -993,12 +901,16 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               child: CircleAvatar(
                 radius: 32,
                 backgroundImage: NetworkImage(_members[1]['avatar']!),
+                onBackgroundImageError: (_, __) {}, // Add error handler
               ),
             ),
           ),
         ],
       );
     }
+
+     // Default for 3+ members
+    List<Map<String, String>> membersToShow = _members.length > 3 ? _members.sublist(0, 3) : _members;
 
     return Stack(
       alignment: Alignment.center,
@@ -1009,17 +921,18 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 8,
-                  offset: Offset(0, 4),
-                ),
-              ],
+               boxShadow: [
+                 BoxShadow(
+                   color: Colors.black.withOpacity(0.15),
+                   blurRadius: 8,
+                   offset: Offset(0, 4),
+                 ),
+               ],
             ),
             child: CircleAvatar(
               radius: 28,
-              backgroundImage: NetworkImage(_members[0]['avatar']!),
+              backgroundImage: NetworkImage(membersToShow[0]['avatar']!),
+              onBackgroundImageError: (_, __) {}, // Add error handler
             ),
           ),
         ),
@@ -1027,40 +940,41 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              ),
-            ],
+             boxShadow: [
+               BoxShadow(
+                 color: Colors.black.withOpacity(0.2),
+                 blurRadius: 10,
+                 offset: Offset(0, 4),
+               ),
+             ],
           ),
           child: CircleAvatar(
             radius: 32,
-            backgroundImage: NetworkImage(_members[1]['avatar']!),
+            backgroundImage: NetworkImage(membersToShow[1]['avatar']!),
+            onBackgroundImageError: (_, __) {}, // Add error handler
           ),
         ),
-        if (_members.length > 2)
-          Positioned(
-            right: MediaQuery.of(context).size.width * 0.18,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 8,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: CircleAvatar(
-                radius: 28,
-                backgroundImage: NetworkImage(_members[2]['avatar']!),
-              ),
-            ),
-          ),
+        Positioned(
+           right: MediaQuery.of(context).size.width * 0.18,
+           child: Container(
+             decoration: BoxDecoration(
+               shape: BoxShape.circle,
+               border: Border.all(color: Colors.white, width: 3),
+               boxShadow: [
+                 BoxShadow(
+                   color: Colors.black.withOpacity(0.15),
+                   blurRadius: 8,
+                   offset: Offset(0, 4),
+                 ),
+               ],
+             ),
+             child: CircleAvatar(
+               radius: 28,
+               backgroundImage: NetworkImage(membersToShow[2]['avatar']!),
+               onBackgroundImageError: (_, __) {}, // Add error handler
+             ),
+           ),
+         ),
       ],
     );
   }

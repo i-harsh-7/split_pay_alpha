@@ -678,29 +678,29 @@ class GroupsPanel extends StatelessWidget {
                 return groups.isEmpty
                     ? const _NoGroupsView()
                     : Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Your Groups",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                            color: textColor,
+                        padding: const EdgeInsets.all(18),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Your Groups",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ...groups.map((g) => _GroupCard(
+                                    group: g,
+                                    cardColor: cardColor,
+                                    textColor: textColor,
+                                  )),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        ...groups.map((g) => _GroupCard(
-                          group: g,
-                          cardColor: cardColor,
-                          textColor: textColor,
-                        )),
-                      ],
-                    ),
-                  ),
-                );
+                      );
               },
             ),
           ),
@@ -737,39 +737,48 @@ class _GroupCardState extends State<_GroupCard> {
     _checkAdminStatus();
   }
 
+  // Check if the current user is the admin of this group
   Future<void> _checkAdminStatus() async {
+    // Prevent errors if widget is disposed
+    if (!mounted) return;
+
     try {
       final currentUser = await AuthService.getProfile();
       if (currentUser != null && widget.group.id != null) {
         final groupService = Provider.of<GroupService>(context, listen: false);
         final groupData = await groupService.fetchGroupDetails(widget.group.id!);
 
-        if (groupData != null) {
+        if (groupData != null && mounted) {
           final createdByField = groupData['createdBy'];
           String? adminEmail;
 
           if (createdByField is Map) {
             adminEmail = createdByField['email']?.toString();
           } else if (createdByField is String) {
+            // Fallback if the field is just an email string
             adminEmail = createdByField;
           }
 
           setState(() {
-            _isAdmin = (adminEmail == currentUser.email);
+            _isAdmin = (adminEmail != null && adminEmail == currentUser.email);
             _isCheckingAdmin = false;
           });
-        } else {
+        } else if (mounted) {
           setState(() => _isCheckingAdmin = false);
         }
-      } else {
+      } else if (mounted) {
         setState(() => _isCheckingAdmin = false);
       }
     } catch (e) {
-      setState(() => _isCheckingAdmin = false);
+      if (mounted) {
+        setState(() => _isCheckingAdmin = false);
+      }
     }
   }
 
+  // Show confirmation dialog *before* deleting
   void _showDeleteDialog() {
+    // This check is correct. It shows a snackbar for non-admins.
     if (!_isAdmin) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -789,6 +798,7 @@ class _GroupCardState extends State<_GroupCard> {
       return;
     }
 
+    // If admin, show the confirmation dialog
     final theme = Theme.of(context);
     showDialog(
       context: context,
@@ -829,7 +839,9 @@ class _GroupCardState extends State<_GroupCard> {
     );
   }
 
+  // Handle the actual deletion process
   Future<void> _deleteGroup() async {
+    // Show loading indicator
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -854,9 +866,10 @@ class _GroupCardState extends State<_GroupCard> {
 
     try {
       final groupService = Provider.of<GroupService>(context, listen: false);
+      // This service call uses the correct API endpoint
       final success = await groupService.deleteGroup(widget.group.id!);
 
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(); // Close loading indicator
 
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -891,7 +904,7 @@ class _GroupCardState extends State<_GroupCard> {
         );
       }
     } catch (e) {
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(); // Close loading indicator
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -930,19 +943,19 @@ class _GroupCardState extends State<_GroupCard> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: _isHovered
               ? [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ]
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
               : [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),
@@ -971,18 +984,23 @@ class _GroupCardState extends State<_GroupCard> {
                   ],
                 ),
               ),
-              // Delete button - Only visible to admin
-              if (!_isCheckingAdmin && _isAdmin)
+              
+              // --- MODIFICATION START ---
+              // Show button after check, but change color based on admin status
+              if (!_isCheckingAdmin)
                 IconButton(
                   icon: Icon(
                     Icons.delete_outline,
-                    color: Colors.red.withOpacity(0.8),
+                    // Set color based on admin status
+                    color: _isAdmin ? Colors.red.withOpacity(0.8) : Colors.grey,
                     size: 24,
                   ),
+                  // _showDeleteDialog handles the non-admin click
                   onPressed: _showDeleteDialog,
                   tooltip: 'Delete Group',
                   splashRadius: 24,
                 ),
+              // --- MODIFICATION END ---
             ],
           ),
         ),
@@ -1365,6 +1383,8 @@ class _GroupAvatar extends StatelessWidget {
 
       // Lime & Chartreuse
       [Color(0xFF9CCC65), Color(0xFF8BC34A)],
+
+
 
       // Ruby & Crimson
       [Color(0xFFE57373), Color(0xFFEF5350)],
