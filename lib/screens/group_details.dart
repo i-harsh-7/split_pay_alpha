@@ -46,7 +46,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       if (groupData != null) {
         final currentUser = await AuthService.getProfile();
         
-        // Get admin/creator ID
         final createdByField = groupData['createdBy'];
         if (createdByField is Map) {
           _adminId = createdByField['_id']?.toString() ?? createdByField['id']?.toString();
@@ -62,11 +61,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           _members = [];
           
           if (currentUser != null) {
-            _currentUserId = currentUser.email; // Using email as ID for comparison
+            _currentUserId = currentUser.email;
             final userEmail = currentUser.email.isNotEmpty ? currentUser.email : 'user@example.com';
             final userId = (userEmail.hashCode.abs() % 70) + 1;
             
-            // Check if current user is admin
             if (_adminId != null && createdByField is Map) {
               final adminEmail = createdByField['email']?.toString() ?? '';
               _isAdmin = (adminEmail == currentUser.email);
@@ -288,7 +286,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
-  // Add Bill
   void _addBill() {
     Navigator.push(
       context,
@@ -301,7 +298,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
-  // Delete Group
   void _showDeleteGroupDialog() {
     if (!_isAdmin) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -408,7 +404,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           ),
         );
         
-        // Navigate back to groups list
         Navigator.of(context).pop();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -437,7 +432,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -624,6 +618,46 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                     ),
                                   ),
 
+                                  // Add Bill & Invite Buttons Side by Side
+                                  const SizedBox(height: 20),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: ElevatedButton.icon(
+                                          onPressed: _addBill,
+                                          icon: Icon(Icons.receipt_long, size: 20),
+                                          label: Text('Add Bill'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: theme.primaryColor,
+                                            foregroundColor: Colors.white,
+                                            padding: EdgeInsets.symmetric(vertical: 14),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            elevation: 2,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: ElevatedButton.icon(
+                                          onPressed: _inviteViaEmail,
+                                          icon: Icon(Icons.person_add, size: 20),
+                                          label: Text('Invite'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: _isAdmin ? Colors.green : Colors.grey,
+                                            foregroundColor: Colors.white,
+                                            padding: EdgeInsets.symmetric(vertical: 14),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            elevation: 2,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
                                   if (_groupDescription.isNotEmpty) ...[
                                     const SizedBox(height: 16),
                                     Container(
@@ -679,163 +713,12 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                               ),
                             ),
 
-                            const SizedBox(height: 24),
-
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 20),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Quick Actions',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: textColor,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 14),
-                                  
-                                  _buildActionCard(
-                                    icon: Icons.receipt_long,
-                                    title: 'Add Bill',
-                                    subtitle: 'Split a new expense with the group',
-                                    color: theme.primaryColor,
-                                    onTap: _addBill,
-                                    cardColor: cardColor,
-                                    textColor: textColor,
-                                    isDark: isDark,
-                                  ),
-                                  
-                                  const SizedBox(height: 12),
-                                  
-                                  _buildActionCard(
-                                    icon: Icons.person_add,
-                                    title: 'Invite Members',
-                                    subtitle: _isAdmin 
-                                        ? 'Send invitation via email' 
-                                        : 'Only admin can invite members',
-                                    color: _isAdmin ? Colors.green : Colors.grey,
-                                    onTap: _inviteViaEmail,
-                                    cardColor: cardColor,
-                                    textColor: textColor,
-                                    isDark: isDark,
-                                    isDisabled: !_isAdmin,
-                                  ),
-                                  
-                                  const SizedBox(height: 12),
-                                  
-                                  _buildActionCard(
-                                    icon: Icons.delete_outline,
-                                    title: 'Delete Group',
-                                    subtitle: _isAdmin 
-                                        ? 'Permanently delete this group' 
-                                        : 'Only admin can delete the group',
-                                    color: _isAdmin ? Colors.red : Colors.grey,
-                                    onTap: _showDeleteGroupDialog,
-                                    cardColor: cardColor,
-                                    textColor: textColor,
-                                    isDark: isDark,
-                                    isDisabled: !_isAdmin,
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 28),
                             const SizedBox(height: 32),
                           ],
                         ),
                       ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildActionCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-    required Color cardColor,
-    required Color textColor,
-    required bool isDark,
-    bool isDisabled = false,
-  }) {
-    return Opacity(
-      opacity: isDisabled ? 0.6 : 1.0,
-      child: Material(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: color.withOpacity(0.2),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: 26,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: textColor.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!isDisabled)
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: textColor.withOpacity(0.3),
-                  ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

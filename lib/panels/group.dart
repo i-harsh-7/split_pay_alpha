@@ -78,6 +78,119 @@ class _GroupCard extends StatefulWidget {
 class _GroupCardState extends State<_GroupCard> {
   bool _isHovered = false;
 
+  void _showDeleteDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 12),
+            Text('Delete Group'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete "${widget.group.name}"? This action cannot be undone.',
+          style: TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancel', style: TextStyle(color: theme.primaryColor)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _deleteGroup(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteGroup(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Center(
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Deleting group...'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final groupService = Provider.of<GroupService>(context, listen: false);
+      final success = await groupService.deleteGroup(widget.group.id!);
+
+      Navigator.of(context).pop();
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Group deleted successfully')),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Failed to delete group')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,59 +212,69 @@ class _GroupCardState extends State<_GroupCard> {
       onTapCancel: () => setState(() => _isHovered = false),
       onTapUp: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-          margin: const EdgeInsets.only(bottom: 14),
-          decoration: BoxDecoration(
-            color: widget.cardColor,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: _isHovered
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: widget.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: _isHovered
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Hero(
+                tag: 'group_avatar_${group.id}',
+                child: _GroupAvatar(
+                  groupName: group.name,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      group.name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: widget.textColor,
+                        fontSize: 16,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Hero(
-                  tag: 'group_avatar_${group.id}',
-                  child: _GroupAvatar(
-                    groupName: group.name, // ✅ PASS GROUP NAME
-                  ),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        group.name,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: widget.textColor,
-                          fontSize: 16,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+              // Delete Button
+              IconButton(
+                onPressed: () => _showDeleteDialog(context),
+                icon: Icon(Icons.delete_outline),
+                color: Colors.red,
+                tooltip: 'Delete Group',
+                iconSize: 24,
+                padding: EdgeInsets.all(8),
+                constraints: BoxConstraints(),
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 }
@@ -489,52 +612,21 @@ class _GroupAvatar extends StatelessWidget {
   // VIBRANT, MODERN GRADIENT COLORS - Enhanced palette
   List<Color> _getColorsForGroup(String name) {
     final colorSets = [
-      // Vibrant Purple & Lavender
       [Color(0xFF9575CD), Color(0xFF7E57C2)],
-      
-      // Hot Pink & Rose
       [Color(0xFFEF5DA8), Color(0xFFF48FB1)],
-      
-      // Ocean Teal & Turquoise
       [Color(0xFF4DB6AC), Color(0xFF26A69A)],
-      
-      // Sky Blue & Azure
       [Color(0xFF5DADE2), Color(0xFF42A5F5)],
-      
-      // Coral & Salmon
       [Color(0xFFFF7961), Color(0xFFFF8A80)],
-      
-      // Royal Indigo & Violet
       [Color(0xFF7986CB), Color(0xFF5C6BC0)],
-      
-      // Bright Cyan & Aqua
       [Color(0xFF4DD0E1), Color(0xFF26C6DA)],
-      
-      // Golden Amber & Honey
       [Color(0xFFFFB74D), Color(0xFFFFA726)],
-      
-      // Magenta & Pink
       [Color(0xFFF06292), Color(0xFFEC407A)],
-      
-      // Fresh Green & Mint
       [Color(0xFF66BB6A), Color(0xFF4DB6AC)],
-      
-      // Steel Blue-Grey
       [Color(0xFF78909C), Color(0xFF607D8B)],
-      
-      // Peach & Orange
       [Color(0xFFFF9E80), Color(0xFFFFAB91)],
-      
-      // Deep Purple & Plum
       [Color(0xFFBA68C8), Color(0xFFAB47BC)],
-      
-      // Lime & Chartreuse
       [Color(0xFF9CCC65), Color(0xFF8BC34A)],
-      
-      // Ruby & Crimson
       [Color(0xFFE57373), Color(0xFFEF5350)],
-      
-      // Sapphire & Navy
       [Color(0xFF64B5F6), Color(0xFF42A5F5)],
     ];
     final index = name.hashCode.abs() % colorSets.length;
