@@ -4,6 +4,7 @@ import '../components/header.dart';
 import '../models/group_model.dart';
 import '../screens/group_details.dart';
 import '../services/group_service.dart';
+import '../services/auth_service.dart';
 
 class GroupsPanel extends StatelessWidget {
   GroupsPanel({Key? key}) : super(key: key);
@@ -77,8 +78,75 @@ class _GroupCard extends StatefulWidget {
 
 class _GroupCardState extends State<_GroupCard> {
   bool _isHovered = false;
+  bool _isAdmin = false;
+  bool _isCheckingAdmin = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfAdmin();
+  }
+
+  Future<void> _checkIfAdmin() async {
+    try {
+      final groupService = Provider.of<GroupService>(context, listen: false);
+      final groupData = await groupService.fetchGroupDetails(widget.group.id!);
+      
+      if (groupData != null) {
+        final currentUser = await AuthService.getProfile();
+        
+        if (currentUser != null) {
+          // Get admin/creator info
+          final createdByField = groupData['createdBy'];
+          
+          if (createdByField is Map) {
+            final adminEmail = createdByField['email']?.toString() ?? '';
+            setState(() {
+              _isAdmin = (adminEmail == currentUser.email);
+              _isCheckingAdmin = false;
+            });
+          } else {
+            setState(() {
+              _isCheckingAdmin = false;
+            });
+          }
+        } else {
+          setState(() {
+            _isCheckingAdmin = false;
+          });
+        }
+      } else {
+        setState(() {
+          _isCheckingAdmin = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isCheckingAdmin = false;
+      });
+    }
+  }
 
   void _showDeleteDialog(BuildContext context) {
+    if (!_isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.lock, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Only admin can delete the group')),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+
     final theme = Theme.of(context);
     showDialog(
       context: context,
@@ -261,16 +329,17 @@ class _GroupCardState extends State<_GroupCard> {
                   ],
                 ),
               ),
-              // Delete Button
-              IconButton(
-                onPressed: () => _showDeleteDialog(context),
-                icon: Icon(Icons.delete_outline),
-                color: Colors.red,
-                tooltip: 'Delete Group',
-                iconSize: 24,
-                padding: EdgeInsets.all(8),
-                constraints: BoxConstraints(),
-              ),
+              // Delete Button (Admin only, shown after checking)
+              if (!_isCheckingAdmin && _isAdmin)
+                IconButton(
+                  onPressed: () => _showDeleteDialog(context),
+                  icon: Icon(Icons.delete_outline),
+                  color: Colors.red,
+                  tooltip: 'Delete Group',
+                  iconSize: 24,
+                  padding: EdgeInsets.all(8),
+                  constraints: BoxConstraints(),
+                ),
             ],
           ),
         ),
