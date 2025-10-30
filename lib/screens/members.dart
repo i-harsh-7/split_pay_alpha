@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../components/header.dart';
+import '../components/initial_avatar.dart';
 
 class MembersPage extends StatelessWidget {
   final String groupName;
@@ -144,7 +145,7 @@ class MembersPage extends StatelessWidget {
                         context: context,
                         name: member['name']!,
                         email: member['email']!,
-                        avatar: member['avatar']!,
+                        avatar: member['name']!,
                         cardColor: cardColor,
                         textColor: textColor,
                         isDark: isDark,
@@ -206,10 +207,7 @@ class MembersPage extends StatelessWidget {
                     width: 2,
                   ),
                 ),
-                child: CircleAvatar(
-                  radius: 28,
-                  backgroundImage: NetworkImage(avatar),
-                ),
+                child: InitialAvatar(name: name, radius: 28),
               ),
               if (isAdmin)
                 Positioned(

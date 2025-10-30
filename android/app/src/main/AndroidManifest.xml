@@ -57,11 +57,14 @@
         tools:ignore="PermissionImpliesUnsupportedChromeOsHardware" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
     android:maxSdkVersion="32" />
 
     <application
-        android:label="split_pay_alpha"
+        android:label="SplitPay"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

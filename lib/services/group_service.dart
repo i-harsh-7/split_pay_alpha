@@ -76,6 +76,16 @@ class GroupService extends ChangeNotifier {
     return _groupExpenses[groupId] ?? [];
   }
 
+  // ✅ NEW: Remove expense from local cache for a group
+  void removeExpenseFromGroup(String groupId, String expenseId) {
+    final list = _groupExpenses[groupId];
+    if (list == null) return;
+    _groupExpenses[groupId] = list
+        .where((e) => (e['_id']?.toString() ?? e['id']?.toString() ?? '') != expenseId)
+        .toList();
+    notifyListeners();
+  }
+
   // Clear all groups (call this on logout)
   void clearGroups() {
     _groups.clear();

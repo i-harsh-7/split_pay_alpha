@@ -5,6 +5,7 @@ import '../components/header.dart';
 import 'manual_add.dart';
 import 'bill_review.dart';
 import '../services/bill_service.dart';
+import '../components/loading_dialog.dart';
 
 class AddBillPage extends StatefulWidget {
   final String groupId;
@@ -24,6 +25,7 @@ class _AddBillPageState extends State<AddBillPage> {
   File? _capturedImage;
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
+  final TextEditingController _billNameController = TextEditingController();
 
   Future<void> _takePhoto() async {
     try {
@@ -69,47 +71,32 @@ class _AddBillPageState extends State<AddBillPage> {
 
   Future<void> _uploadImage() async {
     if (_capturedImage == null) return;
+    if (_billNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please enter a bill name')),
+      );
+      return;
+    }
 
     setState(() => _isUploading = true);
 
     try {
       // Show loading dialog
-      showDialog(
+      LoadingDialog.show(
         context: context,
-        barrierDismissible: false,
-        builder: (ctx) => Center(
-          child: Container(
-            padding: EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 20),
-                Text(
-                  'Parsing bill...',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'This may take a few seconds',
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-        ),
+        title: 'Processing Bill',
+        subtitle: 'Analyzing receipt and extracting details...',
+        icon: Icons.receipt_long,
+        primaryColor: const Color(0xFF5B8DEE),
       );
 
       final result = await BillService.uploadBill(
         imageFile: _capturedImage!,
         groupId: widget.groupId,
+        billName: _billNameController.text.trim(),
       );
 
-      Navigator.of(context).pop(); // Close loading dialog
+      LoadingDialog.hide(context); // Close loading dialog
 
       if (result['success'] == true && result['expense'] != null) {
         final expense = result['expense'];
@@ -167,6 +154,25 @@ class _AddBillPageState extends State<AddBillPage> {
           Header(
             title: 'Add Bill',
             heightFactor: 0.12,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 16),
+                Text('Bill Name', style: TextStyle(fontWeight: FontWeight.bold, color: theme.textTheme.bodyMedium?.color)),
+                SizedBox(height: 8),
+                TextField(
+                  controller: _billNameController,
+                  decoration: InputDecoration(
+                    hintText: 'e.g., Dinner at Cafe',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
           ),
           Expanded(
             child: Padding(
@@ -388,5 +394,11 @@ class _AddBillPageState extends State<AddBillPage> {
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _billNameController.dispose();
+    super.dispose();
   }
 }

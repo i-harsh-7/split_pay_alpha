@@ -107,12 +107,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final primaryColor = theme.primaryColor;
-    final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
+    final textColor = Colors.black87;
 
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF141B25) : Colors.white,
+      backgroundColor: Colors.white,
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Stack(

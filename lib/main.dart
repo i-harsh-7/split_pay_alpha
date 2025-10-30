@@ -21,12 +21,14 @@ class SplitPayApp extends StatefulWidget {
 
 class _SplitPayAppState extends State<SplitPayApp> {
   bool _isAuthenticated = false;
+  bool _isLoading = true; // Add loading state
   ThemeMode _themeMode = ThemeMode.light;
   GroupService? _groupService;
 
   void _onLoginOrSignUp() {
     setState(() {
       _isAuthenticated = true;
+      _isLoading = false;
     });
     // Fetch groups for the newly logged in user
     _groupService?.fetchGroups();
@@ -41,6 +43,7 @@ class _SplitPayAppState extends State<SplitPayApp> {
     
     setState(() {
       _isAuthenticated = false;
+      _isLoading = false;
     });
   }
 
@@ -48,6 +51,39 @@ class _SplitPayAppState extends State<SplitPayApp> {
     setState(() {
       _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     });
+  }
+
+  // Check for existing authentication on app start
+  Future<void> _checkAuthStatus() async {
+    try {
+      final token = await AuthService.getToken();
+      if (token != null && token.isNotEmpty) {
+        // Verify token is still valid by getting user profile
+        final user = await AuthService.getProfile();
+        if (user != null) {
+          setState(() {
+            _isAuthenticated = true;
+            _isLoading = false;
+          });
+          // Fetch groups for the authenticated user
+          _groupService?.fetchGroups();
+          return;
+        }
+      }
+    } catch (e) {
+      print('Error checking auth status: $e');
+    }
+    
+    setState(() {
+      _isAuthenticated = false;
+      _isLoading = false;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthStatus();
   }
 
   @override
@@ -78,14 +114,20 @@ class _SplitPayAppState extends State<SplitPayApp> {
                 onLogout: _onLogout,
               ),
         },
-        // Changed: Show Welcome screen first, then home if authenticated
-        home: _isAuthenticated
-            ? HomePanel(
-                toggleTheme: _toggleTheme,
-                themeMode: _themeMode,
-                onLogout: _onLogout,
+        // Show loading screen while checking auth, then appropriate screen
+        home: _isLoading
+            ? const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(),
+                ),
               )
-            : const WelcomeScreen(),
+            : _isAuthenticated
+                ? HomePanel(
+                    toggleTheme: _toggleTheme,
+                    themeMode: _themeMode,
+                    onLogout: _onLogout,
+                  )
+                : const WelcomeScreen(),
         onGenerateRoute: (settings) {
           if (settings.name == '/signup') {
             return PageRouteBuilder(

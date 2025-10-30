@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../components/header.dart';
 import '../services/auth_service.dart';
+import '../components/initial_avatar.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -165,20 +166,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 ),
                               ],
                             ),
-                            child: ClipOval(
-                              child: Image.network(
-                                'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400',
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: primaryColor.withOpacity(0.2),
-                                    child: Icon(
-                                      Icons.person,
-                                      size: 60,
-                                      color: primaryColor,
-                                    ),
-                                  );
-                                },
+                            child: Center(
+                              child: InitialAvatar(
+                                name: _nameController.text.trim().isEmpty ? 'User' : _nameController.text.trim(),
+                                radius: 52,
                               ),
                             ),
                           ),

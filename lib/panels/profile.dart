@@ -5,6 +5,7 @@ import '../screens/about_us.dart';
 import '../screens/team_page.dart';
 import '../screens/edit_profile.dart';
 import '../screens/change_password.dart';
+import '../components/initial_avatar.dart';
 
 class ProfilePanel extends StatefulWidget {
   final VoidCallback? onLogout;
@@ -175,11 +176,8 @@ class _ProfilePanelState extends State<ProfilePanel> {
                             ),
                           ],
                         ),
-                        child: ClipOval(
-                          child: Image.network(
-                            'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400',
-                            fit: BoxFit.cover,
-                          ),
+                        child: Center(
+                          child: InitialAvatar(name: _name ?? 'User', radius: photoSize / 2 - 6),
                         ),
                       ),
                     ),

@@ -112,9 +112,8 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final primaryColor = theme.primaryColor;
-    final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
+    final textColor = Colors.black87;
     final size = MediaQuery.of(context).size;
     final textScale = MediaQuery.of(context).textScaler.scale(1.0);
     final horizontalPadding = (size.width * 0.08).clamp(16.0, 28.0);
@@ -123,7 +122,7 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
     final buttonHeight = (size.height * 0.06).clamp(44.0, 56.0);
 
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF141B25) : Colors.white,
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
           // Animated SVG Header

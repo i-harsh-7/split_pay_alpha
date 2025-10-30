@@ -9,6 +9,7 @@ import 'services/auth_service.dart';
 import 'services/group_service.dart';
 import 'services/invite_service.dart';
 import 'services/notification_service.dart';
+import 'components/loading_dialog.dart';
 
 class HomePanel extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -88,31 +89,17 @@ class _HomePanelState extends State<HomePanel> {
   }
 
   Future<void> _handleAcceptInvite(String inviteId, String groupName) async {
-    showDialog(
+    LoadingDialog.show(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => Center(
-        child: Container(
-          padding: EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Accepting invite...'),
-            ],
-          ),
-        ),
-      ),
+      title: 'Accepting Invite',
+      subtitle: 'Joining "$groupName"...',
+      icon: Icons.group_add,
+      primaryColor: Colors.green,
     );
 
     try {
       final result = await InviteService.acceptInvite(inviteId);
-      Navigator.of(context).pop();
+      LoadingDialog.hide(context);
 
       if (result['success']) {
         await Future.wait([
@@ -144,7 +131,7 @@ class _HomePanelState extends State<HomePanel> {
         );
       }
     } catch (e) {
-      Navigator.of(context).pop();
+      LoadingDialog.hide(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -155,31 +142,17 @@ class _HomePanelState extends State<HomePanel> {
   }
 
   Future<void> _handleRejectInvite(String inviteId, String groupName) async {
-    showDialog(
+    LoadingDialog.show(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => Center(
-        child: Container(
-          padding: EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Rejecting invite...'),
-            ],
-          ),
-        ),
-      ),
+      title: 'Declining Invite',
+      subtitle: 'Declining invitation to "$groupName"...',
+      icon: Icons.group_remove,
+      primaryColor: Colors.orange,
     );
 
     try {
       final result = await InviteService.rejectInvite(inviteId);
-      Navigator.of(context).pop();
+      LoadingDialog.hide(context);
 
       if (result['success']) {
         await _loadPendingInvites();
@@ -208,7 +181,7 @@ class _HomePanelState extends State<HomePanel> {
         );
       }
     } catch (e) {
-      Navigator.of(context).pop();
+      LoadingDialog.hide(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),

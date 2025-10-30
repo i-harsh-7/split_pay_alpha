@@ -7,6 +7,10 @@ import '../services/invite_service.dart';
 import 'add_bill.dart';
 import 'members.dart';
 import 'dart:convert';
+import '../components/loading_dialog.dart';
+import '../services/get_bills.dart';
+import '../services/bill_service.dart';
+import '../services/delete_bill.dart';
 
 class GroupDetailsPage extends StatefulWidget {
   final String groupId;
@@ -30,12 +34,17 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   String? _adminName;
   bool _isCurrentUserAdmin = false;
   late GroupService _groupService;
+  List<Map<String, dynamic>> _billAssignments = [];
+  List<Map<String, dynamic>> _bills = [];
 
   @override
   void initState() {
     super.initState();
     _groupService = Provider.of<GroupService>(context, listen: false);
+    print('🧭 GroupDetailsPage.initState for group: ${widget.groupId}');
     _loadGroupDetails();
+    _loadBillAssignments();
+    _loadBills();
   }
 
   Future<void> _loadGroupDetails() async {
@@ -173,6 +182,32 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     }
   }
 
+  Future<void> _loadBillAssignments() async {
+    try {
+      print('🔄 _loadBillAssignments() called');
+      final data = await GetBillsService.getAssignmentsForGroup();
+      print('🔄 _loadBillAssignments received ${data.length} items');
+      if (mounted) {
+        setState(() => _billAssignments = data);
+      }
+    } catch (e) {
+      print('❌ Error loading bill assignments: $e');
+    }
+  }
+
+  Future<void> _loadBills() async {
+    try {
+      print('🔄 _loadBills() called for group ${widget.groupId}');
+      final data = await GetBillsService.getAllBills(groupId: widget.groupId);
+      print('📥 _loadBills received ${data.length} bills');
+      if (mounted) {
+        setState(() => _bills = data);
+      }
+    } catch (e) {
+      print('❌ Error loading bills: $e');
+    }
+  }
+
   void _showInviteDialog() {
     // Only admins can invite
     if (!_isCurrentUserAdmin) {
@@ -243,26 +278,12 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 Navigator.of(ctx).pop();
 
                 // Show loading
-                showDialog(
+                LoadingDialog.show(
                   context: context,
-                  barrierDismissible: false,
-                  builder: (ctx) => Center(
-                    child: Container(
-                      padding: EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: theme.cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text('Sending invite...'),
-                        ],
-                      ),
-                    ),
-                  ),
+                  title: 'Sending Invite',
+                  subtitle: 'Inviting $email to join the group...',
+                  icon: Icons.send,
+                  primaryColor: theme.primaryColor,
                 );
 
                 try {
@@ -271,7 +292,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     friendEmail: email,
                   );
 
-                  Navigator.of(context).pop(); // Close loading
+                  LoadingDialog.hide(context); // Close loading
 
                   if (result['success']) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -300,7 +321,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     );
                   }
                 } catch (e) {
-                  Navigator.of(context).pop(); // Close loading
+                  LoadingDialog.hide(context); // Close loading
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Error: ${e.toString()}'),
@@ -319,6 +340,165 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               child: Text('Send Invite'),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _showBillDetailsModal(Map<String, dynamic> bill, ThemeData theme, Color textColor, Color cardColor, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        final createdBy = bill['createdBy'] ?? {};
+        final createdByEmail = createdBy is Map ? (createdBy['email']?.toString() ?? '') : '';
+        final billName = bill['billName']?.toString() ?? 'Bill';
+        final totalAmount = (bill['totalAmount'] ?? 0).toString();
+        final splitMethod = bill['splitMethod']?.toString() ?? '';
+        final createdAt = bill['createdAt']?.toString() ?? '';
+        final items = (bill['items'] as List?) ?? [];
+        final assignments = (bill['assignments'] as List?) ?? [];
+        final expenseId = bill['_id']?.toString() ?? bill['id']?.toString() ?? '';
+        final canDelete = createdByEmail.isNotEmpty && createdByEmail == _currentUserEmail && expenseId.isNotEmpty;
+        return DraggableScrollableSheet(
+          initialChildSize: 0.8,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (_, controller) {
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.receipt_long, color: theme.primaryColor, size: 26),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          billName,
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: textColor),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text('₹$totalAmount', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.primaryColor)),
+                    ],
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'By ${createdBy['name'] ?? 'Unknown'} • ${_formatDate(createdAt)} • ${splitMethod.isNotEmpty ? splitMethod : 'split'}',
+                    style: TextStyle(fontSize: 14, color: textColor.withOpacity(0.7), fontWeight: FontWeight.w500),
+                  ),
+                  SizedBox(height: 18),
+                  Expanded(
+                    child: ListView(
+                      controller: controller,
+                      children: [
+                        if (items.isNotEmpty) ...[
+                          Text('Items', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: textColor)),
+                          SizedBox(height: 12),
+                          ...items.map((it) {
+                            final name = it['name']?.toString() ?? 'Item';
+                            final qty = (it['quantity'] ?? 0).toString();
+                            final price = (it['price'] ?? 0).toString();
+                            return Container(
+                              margin: EdgeInsets.only(bottom: 12),
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: cardColor,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(name, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textColor)),
+                                  ),
+                                  Text('Qty: $qty  ·  ₹$price', style: TextStyle(fontSize: 14, color: textColor.withOpacity(0.7), fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          SizedBox(height: 16),
+                        ],
+                        if (assignments.isNotEmpty) ...[
+                          Text('Assignments', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: textColor)),
+                          SizedBox(height: 12),
+                          ...assignments.map((a) {
+                            final fromName = a['from'] is Map ? (a['from']['name'] ?? 'Someone') : 'Someone';
+                            final toName = a['to'] is Map ? (a['to']['name'] ?? 'Someone') : 'Someone';
+                            final amount = (a['amount'] ?? 0).toString();
+                            return Padding(
+                              padding: EdgeInsets.only(bottom: 10),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.compare_arrows, size: 20, color: theme.primaryColor),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text('$fromName → $toName · ₹$amount', style: TextStyle(fontSize: 15, color: textColor, fontWeight: FontWeight.w500)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ],
+
+                        if (canDelete) ...[
+                          SizedBox(height: 20),
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (dCtx) => AlertDialog(
+                                  title: Text('Delete Bill?'),
+                                  content: Text('This action cannot be undone.'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.of(dCtx).pop(false), child: Text('Cancel')),
+                                    TextButton(onPressed: () => Navigator.of(dCtx).pop(true), child: Text('Delete', style: TextStyle(color: Colors.red))),
+                                  ],
+                                ),
+                              );
+                              if (confirm != true) return;
+                              final res = await DeleteBillService.deleteBill(
+                                expenseId: expenseId,
+                                context: context,
+                                groupId: widget.groupId,
+                              );
+                              if (!mounted) return;
+                              Navigator.of(context).pop();
+                              if (res['success'] == true) {
+                                setState(() {
+                                  _bills.removeWhere((b) => (b['_id']?.toString() ?? b['id']?.toString() ?? '') == expenseId);
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Bill deleted'), backgroundColor: Colors.green),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(res['message'] ?? 'Failed to delete'), backgroundColor: Colors.red),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              minimumSize: Size(double.infinity, 48),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: Icon(Icons.delete),
+                            label: Text('Delete Bill'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -491,7 +671,12 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           else
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _loadGroupDetails,
+                onRefresh: () async {
+                  print('🔁 Pull-to-refresh triggered');
+                  await _loadGroupDetails();
+                  await _loadBillAssignments();
+                  await _loadBills();
+                },
                 child: SingleChildScrollView(
                   physics: AlwaysScrollableScrollPhysics(),
                   child: Padding(
@@ -613,76 +798,157 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
                         SizedBox(height: 24),
 
-                        // ✅ NEW: Recent Activity Section with Consumer
-                        Text(
-                          'Recent Activity',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                          ),
-                        ),
-                        SizedBox(height: 12),
+                        // Recent Activity section removed as requested
 
-                        Consumer<GroupService>(
-                          builder: (context, groupService, _) {
-                            final expenses = groupService.getGroupExpenses(widget.groupId);
-                            
-                            if (expenses.isEmpty) {
-                              return Container(
-                                width: double.infinity,
-                                padding: EdgeInsets.all(32),
-                                decoration: BoxDecoration(
-                                  color: cardColor,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: isDark
-                                        ? Colors.white.withOpacity(0.1)
-                                        : Colors.grey.withOpacity(0.2),
+                        if (_bills.isNotEmpty) ...[
+                          SizedBox(height: 24),
+                          Text(
+                            'Bills',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                          SizedBox(height: 12),
+                          Column(
+                            children: _bills.map((bill) {
+                              final theme = Theme.of(context);
+                              final billName = bill['billName']?.toString() ?? 'Bill';
+                              final totalAmount = (bill['totalAmount'] ?? 0).toDouble();
+                              final createdBy = bill['createdBy'];
+                              final createdByEmail = createdBy is Map ? (createdBy['email']?.toString() ?? '') : '';
+                              // Build owe/owed line based on assignments (moved logic from Recent Activity)
+                              String subText;
+                              Color subColor;
+                              final assignments = (bill['assignments'] as List?) ?? [];
+                              double totalOwedToYou = 0.0;
+                              double totalYouOwe = 0.0;
+                              for (final a in assignments) {
+                                final fromEmail = a is Map ? (a['from'] is Map ? (a['from']['email']?.toString() ?? '') : '') : '';
+                                final toEmail = a is Map ? (a['to'] is Map ? (a['to']['email']?.toString() ?? '') : '') : '';
+                                final amount = a is Map ? ((a['amount'] ?? 0).toDouble()) : 0.0;
+                                if (fromEmail == _currentUserEmail) totalYouOwe += amount;
+                                if (toEmail == _currentUserEmail) totalOwedToYou += amount;
+                              }
+                              final net = totalOwedToYou - totalYouOwe;
+                              if (net > 0.0) {
+                                subText = 'You are owed ₹${net.toStringAsFixed(2)}';
+                                subColor = Colors.green;
+                              } else if (net < 0.0) {
+                                subText = 'You owe ₹${(-net).toStringAsFixed(2)}';
+                                subColor = Colors.red;
+                              } else {
+                                subText = 'Settled';
+                                subColor = textColor.withOpacity(0.7);
+                              }
+                              return InkWell(
+                                onTap: () => _showBillDetailsModal(bill, theme, textColor, cardColor, isDark),
+                                child: Container(
+                                  margin: EdgeInsets.only(bottom: 12),
+                                  padding: EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: cardColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.2),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.receipt_long, color: primaryColor),
+                                          SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              billName,
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: textColor,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          Text(
+                                            '₹${totalAmount.toStringAsFixed(2)}',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: primaryColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 6),
+                                      Text(
+                                        subText,
+                                        style: TextStyle(fontSize: 12, color: subColor, fontWeight: FontWeight.w500),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                child: Column(
+                              );
+                            }).toList(),
+                          ),
+                        ],
+
+                        if (_billAssignments.isNotEmpty) ...[
+                          SizedBox(height: 24),
+                          Text(
+                            'Uploaded Bills',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Column(
+                            children: _billAssignments.map((a) {
+                              String getMemberName(String id) {
+                                final found = _members.firstWhere(
+                                  (m) => m['id'] == id,
+                                  orElse: () => {},
+                                );
+                                return found['name'] ?? id;
+                              }
+                              final fromId = a['from']?.toString() ?? '';
+                              final toId = a['to']?.toString() ?? '';
+                              final amount = a['amount']?.toString() ?? '';
+                              final fromName = getMemberName(fromId);
+                              final toName = getMemberName(toId);
+                              return Container(
+                                margin: EdgeInsets.only(bottom: 8),
+                                padding: EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isDark ? Colors.white24 : Colors.grey.shade200,
+                                  ),
+                                ),
+                                child: Row(
                                   children: [
-                                    Icon(
-                                      Icons.receipt_long,
-                                      size: 48,
-                                      color: isDark ? Colors.white24 : Colors.grey[400],
-                                    ),
-                                    SizedBox(height: 16),
-                                    Text(
-                                      'No expenses yet',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: textColor,
-                                      ),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      'Add a bill to get started',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: textColor.withOpacity(0.6),
+                                    Icon(Icons.receipt_long, color: primaryColor.withOpacity(0.65), size: 20),
+                                    SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'From: $fromName   To: $toName   Amount: ₹$amount',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: textColor,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
                               );
-                            }
-                            
-                            return Column(
-                              children: expenses.map((expense) {
-                                return _buildExpenseCard(
-                                  expense: expense,
-                                  cardColor: cardColor,
-                                  textColor: textColor,
-                                  primaryColor: primaryColor,
-                                  isDark: isDark,
-                                );
-                              }).toList(),
-                            );
-                          },
-                        ),
+                            }).toList(),
+                          ),
+                        ],
 
                         SizedBox(height: 100),
                       ],

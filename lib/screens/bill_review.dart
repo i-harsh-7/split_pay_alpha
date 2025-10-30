@@ -7,6 +7,8 @@ import '../components/header.dart';
 import '../services/bill_service.dart';
 import '../services/auth_service.dart';
 import '../services/group_service.dart';
+import '../components/loading_dialog.dart';
+import '../components/initial_avatar.dart';
 
 class BillReviewPage extends StatefulWidget {
   final String expenseId;
@@ -438,35 +440,12 @@ class _BillReviewPageState extends State<BillReviewPage> {
       print('   Total assigned to others: ₹${totalAssigned.toStringAsFixed(2)}');
       print('   Number of assignments: ${assignments.length}');
 
-      showDialog(
+      LoadingDialog.show(
         context: context,
-        barrierDismissible: false,
-        builder: (ctx) => Center(
-          child: Container(
-            padding: EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 20),
-                Text(
-                  'Processing bill...',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Assigning expenses and updating balances',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ),
+        title: 'Processing Bill',
+        subtitle: 'Assigning expenses and updating balances...',
+        icon: Icons.account_balance_wallet,
+        primaryColor: const Color(0xFF5B8DEE),
       );
 
       print('\n📤 STEP 1: Calling assignMoney API...');
@@ -492,7 +471,7 @@ class _BillReviewPageState extends State<BillReviewPage> {
       print('📥 settleAssignments response:');
       print(jsonEncode(settleResult));
 
-      Navigator.of(context).pop();
+      LoadingDialog.hide(context);
 
       if (settleResult['success'] == true) {
         print('✅ Assignments settled successfully');
@@ -698,10 +677,7 @@ class _BillReviewPageState extends State<BillReviewPage> {
                                 value: member['email'],
                                 child: Row(
                                   children: [
-                                    CircleAvatar(
-                                      radius: 16,
-                                      backgroundImage: NetworkImage(member['avatar']!),
-                                    ),
+                                    InitialAvatar(name: member['name']!, radius: 16),
                                     SizedBox(width: 12),
                                     Text(
                                       member['name']!,
@@ -920,10 +896,7 @@ class _BillReviewPageState extends State<BillReviewPage> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircleAvatar(
-                        radius: 10,
-                        backgroundImage: NetworkImage(member['avatar']!),
-                      ),
+                      InitialAvatar(name: member['name']!, radius: 10),
                       SizedBox(width: 6),
                       Text(
                         member['name']!,

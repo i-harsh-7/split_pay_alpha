@@ -40,6 +40,8 @@ class AuthService {
               name: userMap['name']?.toString() ?? 'User',
               email: userMap['email']?.toString() ?? '',
             );
+            // Persist user data
+            await _saveUserData(_cachedUser!);
           }
         } catch (_) {}
 
@@ -84,6 +86,8 @@ class AuthService {
               name: userMap['name']?.toString() ?? 'User',
               email: userMap['email']?.toString() ?? '',
             );
+            // Persist user data
+            await _saveUserData(_cachedUser!);
           }
         } catch (_) {}
         return token;
@@ -223,6 +227,8 @@ class AuthService {
               name: name,
               email: _cachedUser!.email,
             );
+            // Save updated user data
+            await _saveUserData(_cachedUser!);
           }
           return {
             'success': true,
@@ -252,6 +258,8 @@ class AuthService {
             name: name,
             email: _cachedUser!.email,
           );
+          // Save updated user data
+          await _saveUserData(_cachedUser!);
         }
 
         return {
@@ -320,8 +328,12 @@ class AuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('auth_token');
+      await prefs.remove('user_name');
+      await prefs.remove('user_email');
     } on MissingPluginException {
       _inMemory.remove('auth_token');
+      _inMemory.remove('user_name');
+      _inMemory.remove('user_email');
     }
   }
 
@@ -335,7 +347,17 @@ class AuthService {
   }
 
   static Future<User?> getProfile() async {
+    // First try to get from cache
     if (_cachedUser != null) return _cachedUser;
+    
+    // Then try to load from SharedPreferences
+    final savedUser = await _loadUserData();
+    if (savedUser != null) {
+      _cachedUser = savedUser;
+      return _cachedUser;
+    }
+    
+    // Finally, try to fetch from API
     final token = await getToken();
     if (token == null) return null;
 
@@ -371,6 +393,39 @@ class AuthService {
 
   static void clearCache() {
     _cachedUser = null;
+  }
+
+  // Helper method to save user data to SharedPreferences
+  static Future<void> _saveUserData(User user) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_name', user.name);
+      await prefs.setString('user_email', user.email);
+    } on MissingPluginException {
+      _inMemory['user_name'] = user.name;
+      _inMemory['user_email'] = user.email;
+    }
+  }
+
+  // Helper method to load user data from SharedPreferences
+  static Future<User?> _loadUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final name = prefs.getString('user_name');
+      final email = prefs.getString('user_email');
+      
+      if (name != null && email != null) {
+        return User(name: name, email: email);
+      }
+    } on MissingPluginException {
+      final name = _inMemory['user_name'];
+      final email = _inMemory['user_email'];
+      
+      if (name != null && email != null) {
+        return User(name: name, email: email);
+      }
+    }
+    return null;
   }
 }
 

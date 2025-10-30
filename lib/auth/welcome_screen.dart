@@ -68,11 +68,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    // Light-only visuals
 
     return Scaffold(
-      backgroundColor: isDark ? Color(0xFF141B25) : Colors.white,
+      backgroundColor: Colors.white,
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
@@ -150,7 +149,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
               Expanded(
                 flex: 4,
                 child: Container(
-                  color: isDark ? Color(0xFF141B25) : Colors.white,
+                  color: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Transform.translate(
                     offset: Offset(
@@ -168,7 +167,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                           style: TextStyle(
                             fontSize: 36,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
+                            color: Colors.black87,
                           ),
                         ),
                         
@@ -179,7 +178,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                           'Split expenses easily with friends and keep track of who owes what.',
                           style: TextStyle(
                             fontSize: 16,
-                            color: isDark ? Colors.white60 : Colors.black45,
+                            color: Colors.black45,
                             height: 1.5,
                           ),
                         ),
